@@ -14,8 +14,9 @@ interface Entity {
 }
 
 interface GeneratedCode {
+  api: string;
   interfaces: string;
-  hooks: string;
+  [key: string]: string;
 }
 
 function generateEntityCode(
@@ -26,97 +27,221 @@ function generateEntityCode(
     .map((property) => `  ${property.name}: ${property.type};`)
     .join("\n");
 
-  const entityInterface = `
-interface ${entityName} {
+  const api = `import { BASE_URL, httpClient } from '@shared';
+
+import {
+  ${entityName}ApiClientType,
+  ${entityName}RequestType,
+  ${entityName}ResponseType,
+} from '../types/${entityName.toLowerCase()}Types';
+
+const get${entityName}s = async () => {
+  const { data } = await httpClient.request<${entityName}ResponseType[]>({
+    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\`,
+    method: 'GET',
+  });
+
+  return data;
+};
+
+const get${entityName}ById = async (id: string) => {
+  const { data } = await httpClient.request<${entityName}ResponseType>({
+    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\${id}\`,
+    method: 'GET',
+  });
+
+  return data;
+};
+
+const create${entityName} = async (request: ${entityName}RequestType) => {
+  const { data } = await httpClient.request<${entityName}ResponseType>({
+    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\`,
+    data: request,
+    method: 'POST',
+  });
+
+  return data;
+};
+
+const update${entityName} = async (id: string, body: ${entityName}RequestType) => {
+  const { data } = await httpClient.request<${entityName}ResponseType>({
+    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\${id}\`,
+    data: body,
+    method: 'PATCH',
+  });
+
+  return data;
+};
+
+const delete${entityName} = async (id: string) => {
+  const { data } = await httpClient.request<void>({
+    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\${id}\`,
+    method: 'DELETE',
+  });
+
+  return data;
+};
+
+export const ${entityName.toLowerCase()}ApiClient: ${entityName}ApiClientType = {
+  get${entityName}s,
+  get${entityName}ById,
+  create${entityName},
+  update${entityName},
+  delete${entityName},
+};
+`;
+
+  const entityInterface = `export interface ${entityName}Type {
 ${interfaceProperties}
 }
 `;
 
   const crudInterfaces = `
-interface Create${entityName}Input {
-${interfaceProperties}
-}
+export type ${entityName}RequestType = ${entityName}Type;
 
-interface Update${entityName}Input {
-${interfaceProperties}
-}
+export type ${entityName}ResponseType = ${entityName}Type;
+`;
 
-interface ${entityName}Response {
-  data: ${entityName};
+  const apiInterfaces = `
+export interface ${entityName}ApiClientType {
+  get${entityName}s: () => Promise<${entityName}ResponseType[]>;
+  get${entityName}ById: (id: string) => Promise<${entityName}ResponseType>;
+  create${entityName}: (
+    request: ${entityName}RequestType,
+  ) => Promise<${entityName}ResponseType>;
+  update${entityName}: (
+    id: string,
+    request: ${entityName}RequestType,
+  ) => Promise<${entityName}ResponseType>;
+  delete${entityName}: (id: string) => Promise<void>;
 }
 `;
 
-  const hooks = `
-import { useMutation, useQuery, useQueryClient } from 'react-query';
-import axios from 'axios';
+  const getEntities = `import { useQuery } from 'react-query';
+import { ${entityName.toLowerCase()}ApiClient } from '../api/${entityName.toLowerCase()}Request';
 
-// Хук для получения списка сущностей
-export const use${entityName}s = () => {
-  return useQuery<${entityName}[], Error>({
-    queryKey: ['${entityName.toLowerCase()}s'],
-    queryFn: async () => {
-      const response = await axios.get<${entityName}[]>('/api/${entityName.toLowerCase()}s');
-      return response.data;
+export const useGet${entityName}s = () => {
+  const queryKey = '${entityName.toLowerCase()}s';
+
+  const { data: ${entityName.toLowerCase()}s, isSuccess: isLoaded } = useQuery(
+    [queryKey],
+    () => ${entityName.toLowerCase()}ApiClient.get${entityName}s(),
+    {
+      retry: false,
+      useErrorBoundary: false,
     },
-  });
-};
+  );
 
-// Хук для получения одной сущности
-export const use${entityName} = (id: string) => {
-  return useQuery<${entityName}, Error>({
-    queryKey: ['${entityName.toLowerCase()}', id],
-    queryFn: async () => {
-      const response = await axios.get<${entityName}>(/api/${entityName.toLowerCase()}/\${id});
-      return response.data;
+  return { ${entityName.toLowerCase()}s, isLoaded };
+};
+`;
+
+  const getEntityById = `import { useQuery } from 'react-query';
+import { ${entityName.toLowerCase()}ApiClient } from '../api/${entityName.toLowerCase()}Request';
+
+export const useGet${entityName}ById = (id: string) => {
+  const queryKey = '${entityName.toLowerCase()}';
+
+  const {
+    data: ${entityName.toLowerCase()},
+    isSuccess: isLoaded,
+  } = useQuery(
+    [queryKey, id],
+    () => ${entityName.toLowerCase()}ApiClient.get${entityName}ById(id),
+    {
+      retry: false,
+      useErrorBoundary: false,
+      enabled: !!id,
     },
-  });
-};
+  );
 
-// Хук для создания сущности
+  return { ${entityName.toLowerCase()}, isLoaded };
+};
+`;
+
+  const createEntity = `import { useMutation } from 'react-query';
+import { ${entityName.toLowerCase()}ApiClient } from '../api/${entityName.toLowerCase()}Request';
+import { ${entityName}RequestType } from '../types/${entityName.toLowerCase()}Types';
+
 export const useCreate${entityName} = () => {
-  const queryClient = useQueryClient();
-  return useMutation<${entityName}, Error, Create${entityName}Input>({
-    mutationFn: async (input) => {
-      const response = await axios.post<${entityName}>(/api/${entityName.toLowerCase()}s, input);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['${entityName.toLowerCase()}s']);
-    },
-  });
-};
+  const queryKey = '${entityName.toLowerCase()}-create';
 
-// Хук для обновления сущности
-export const useUpdate${entityName} = () => {
-  const queryClient = useQueryClient();
-  return useMutation<${entityName}, Error, Update${entityName}Input>({
-    mutationFn: async (input) => {
-      const response = await axios.put<${entityName}>(/api/${entityName.toLowerCase()}/\${input.id}, input);
-      return response.data;
+  const {
+    data: ${entityName.toLowerCase()},
+    mutate: onCreate${entityName},
+    isSuccess: isCreated,
+  } = useMutation(
+    [queryKey],
+    (request: ${entityName}RequestType) =>
+      ${entityName.toLowerCase()}ApiClient.create${entityName}(request),
+    {
+      retry: false,
+      useErrorBoundary: false,
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['${entityName.toLowerCase()}s']);
-    },
-  });
-};
+  );
 
-// Хук для удаления сущности
-export const useDelete${entityName} = () => {
-  const queryClient = useQueryClient();
-  return useMutation<void, Error, string>({
-    mutationFn: async (id) => {
-      await axios.delete(/api/${entityName.toLowerCase()}/\${id});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['${entityName.toLowerCase()}s']);
-    },
-  });
+  return { ${entityName.toLowerCase()}, isCreated, onCreate${entityName} };
 };
 `;
 
+  const updateEntity = `import { useMutation } from 'react-query';
+import { ${entityName.toLowerCase()}ApiClient } from '../api/${entityName.toLowerCase()}Request';
+import { ${entityName}RequestType } from '../types/${entityName.toLowerCase()}Types';
+
+type Update${entityName}RequestType = { id: string; request: ${entityName}RequestType };
+
+export const useUpdate${entityName} = () => {
+  const queryKey = '${entityName.toLowerCase()}-update';
+
+  const {
+    data: ${entityName.toLowerCase()},
+    mutate: onUpdate${entityName},
+    isSuccess: isUpdated,
+  } = useMutation(
+    [queryKey],
+    ({ id, request }: Update${entityName}RequestType) =>
+      ${entityName.toLowerCase()}ApiClient.update${entityName}(id, request),
+    {
+      retry: false,
+      useErrorBoundary: false,
+    },
+  );
+
+  return { ${entityName.toLowerCase()}, isUpdated, onUpdate${entityName} };
+};
+`;
+
+  const deleteEntity = `import { useMutation } from 'react-query';
+import { ${entityName.toLowerCase()}ApiClient } from '../api/${entityName.toLowerCase()}Request';
+
+export const useDelete${entityName} = () => {
+  const queryKey = '${entityName.toLowerCase()}-delete';
+
+  const {
+    mutate: onDelete${entityName},
+    isSuccess: isDeleted,
+  } = useMutation(
+    [queryKey],
+    (id: string) => ${entityName.toLowerCase()}ApiClient.delete${entityName}(id),
+    {
+      retry: false,
+      useErrorBoundary: false,
+    },
+  );
+
+  return { onDelete${entityName}, isDeleted };
+};
+`;
+
+  // TODO добавить возможность подгружать файл для генерации кода
   return {
-    interfaces: entityInterface + crudInterfaces,
-    hooks: hooks,
+    api: api,
+    interfaces: entityInterface + crudInterfaces + apiInterfaces,
+    [`useGet${entityName}s`]: getEntities,
+    [`useGet${entityName}ById`]: getEntityById,
+    [`useCreate${entityName}`]: createEntity,
+    [`useUpdate${entityName}`]: updateEntity,
+    [`useDelete${entityName}`]: deleteEntity,
   };
 }
 
@@ -134,8 +259,13 @@ program
 
     const generatedCode = generateEntityCode(entityName, entityProperties);
 
+    const apiDir = path.join(process.cwd(), "api");
     const typesDir = path.join(process.cwd(), "types");
     const modelDir = path.join(process.cwd(), "model");
+
+    if (!fs.existsSync(apiDir)) {
+      fs.mkdirSync(apiDir);
+    }
 
     if (!fs.existsSync(typesDir)) {
       fs.mkdirSync(typesDir);
@@ -146,12 +276,32 @@ program
     }
 
     fs.writeFileSync(
+      path.join(apiDir, `${entityName.toLowerCase()}Request.ts`),
+      generatedCode.api,
+    );
+    fs.writeFileSync(
       path.join(typesDir, `${entityName.toLowerCase()}Types.ts`),
       generatedCode.interfaces,
     );
     fs.writeFileSync(
-      path.join(modelDir, `use${entityName}Hooks.ts`),
-      generatedCode.hooks,
+      path.join(modelDir, `useGet${entityName}s.ts`),
+      generatedCode[`useGet${entityName}s`],
+    );
+    fs.writeFileSync(
+      path.join(modelDir, `useGet${entityName}ById.ts`),
+      generatedCode[`useGet${entityName}ById`],
+    );
+    fs.writeFileSync(
+      path.join(modelDir, `useCreate${entityName}.ts`),
+      generatedCode[`useCreate${entityName}`],
+    );
+    fs.writeFileSync(
+      path.join(modelDir, `useUpdate${entityName}.ts`),
+      generatedCode[`useUpdate${entityName}`],
+    );
+    fs.writeFileSync(
+      path.join(modelDir, `useDelete${entityName}.ts`),
+      generatedCode[`useDelete${entityName}`],
     );
 
     console.log("Files generated successfully!");
