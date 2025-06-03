@@ -20,6 +20,10 @@ interface GeneratedCode {
   indexFile: string;
 }
 
+const greenText = "\x1b[32m";
+const redText = "\x1b[31m";
+const resetText = "\x1b[0m";
+
 const ensureDirExists = (dirPath: string) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -255,7 +259,6 @@ export {
 } from './model/requestHooks';
 `;
 
-  // TODO добавить возможность подгружать файл для генерации кода
   return {
     api,
     interfaces: entityInterface + crudInterfaces + apiInterfaces,
@@ -268,13 +271,31 @@ program
   .version("1.0.0")
   .description("CLI tool to generate TanStack CRUD hooks and interfaces")
   .requiredOption("--entityName <type>", "Name of the entity")
-  .requiredOption(
+  .option(
     "--entityProperties <type>",
     "Properties of the entity in JSON format",
   )
+  .option(
+    "--entityFile <type>",
+    "Path to the JSON file containing entity properties",
+  )
   .action((options) => {
     const entityName = options.entityName;
-    const entityProperties: Entity = JSON.parse(options.entityProperties);
+    let entityProperties: Entity = {};
+
+    if (!options.entityFile && !options.entityProperties) {
+      console.error(
+        `${redText}Either --entityProperties or --entityFile must be provided.${resetText}`,
+      );
+      process.exit(1);
+    }
+
+    if (options.entityFile) {
+      const fileContent = fs.readFileSync(options.entityFile, "utf-8");
+      entityProperties = JSON.parse(fileContent);
+    } else {
+      entityProperties = JSON.parse(options.entityProperties);
+    }
 
     const { api, interfaces, requestHooks, indexFile } = generateEntityCode(
       entityName,
@@ -308,10 +329,7 @@ program
     fs.writeFileSync(path.join(modelDir, `requestHooks.ts`), requestHooks);
     fs.writeFileSync(path.join(entityDir, `index.ts`), indexFile);
 
-    const greenText = "\x1b[32m";
-    const resetText = "\x1b[0m";
-
-    console.log(greenText + "Files generated successfully!" + resetText);
+    console.log(`${greenText}"Files generated successfully!"${resetText}`);
   });
 
 program.parse(process.argv);
