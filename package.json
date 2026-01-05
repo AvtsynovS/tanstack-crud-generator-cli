@@ -2,6 +2,10 @@
   "name": "tanstack-crud-generator-cli",
   "version": "1.0.0",
   "description": "CLI tool to generate TanStack CRUD hooks and interfaces",
+  "author": {
+    "name": "Avtsynov Sergey",
+    "url": "https://github.com/AvtsynovS"
+  },
   "license": "MIT",
   "main": "dist/index.js",
   "bin": {
