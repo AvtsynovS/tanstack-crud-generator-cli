@@ -3,21 +3,14 @@
 import { program } from "commander";
 import fs from "fs";
 import path from "path";
-
-interface EntityProperty {
-  name: string;
-  type: string;
-}
-
-interface Entity {
-  [key: string]: EntityProperty;
-}
+import { generateTsTypeFromJson } from "./utils/jsonToTs";
+import { JSONValue } from "./types/types";
 
 interface GeneratedCode {
   api: string;
+  types: string;
   interfaces: string;
   requestHooks: string;
-  indexFile: string;
 }
 
 const greenText = "\x1b[32m";
@@ -30,38 +23,22 @@ const ensureDirExists = (dirPath: string) => {
   }
 };
 
-const isFileContainsLine = (filePath: string, line: string) => {
-  try {
-    if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, "");
-    }
-
-    const content = fs.readFileSync(filePath, "utf-8");
-    return content.includes(line);
-  } catch (error) {
-    return false;
-  }
-};
-
 const generateEntityCode = (
   entityName: string,
-  entityProperties: Entity,
+  entityJson: JSONValue,
 ): GeneratedCode => {
-  const interfaceProperties = Object.values(entityProperties)
-    .map((property) => `  ${property.name}: ${property.type};`)
-    .join("\n");
-
-  const api = `import { BASE_URL, httpClient } from '@shared';
+  // TODO: replace with your http client
+  const api = `import { httpClient } from '@common/data-access';
 
 import {
   ${entityName}ApiClientType,
   ${entityName}RequestType,
   ${entityName}ResponseType,
-} from '../types/${entityName.toLowerCase()}Types';
+} from '../types/requestTypes';
 
 const get${entityName}s = async () => {
   const { data } = await httpClient.request<${entityName}ResponseType[]>({
-    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\`,
+    url: \`\/${entityName.toLowerCase()}s/\`,
     method: 'GET',
   });
 
@@ -70,7 +47,7 @@ const get${entityName}s = async () => {
 
 const get${entityName}ById = async (id: string) => {
   const { data } = await httpClient.request<${entityName}ResponseType>({
-    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\${id}\`,
+    url: \`\/${entityName.toLowerCase()}s/\${id}\`,
     method: 'GET',
   });
 
@@ -79,7 +56,7 @@ const get${entityName}ById = async (id: string) => {
 
 const create${entityName} = async (request: ${entityName}RequestType) => {
   const { data } = await httpClient.request<${entityName}ResponseType>({
-    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\`,
+    url: \`\/${entityName.toLowerCase()}s/\`,
     data: request,
     method: 'POST',
   });
@@ -89,7 +66,7 @@ const create${entityName} = async (request: ${entityName}RequestType) => {
 
 const update${entityName} = async (id: string, body: ${entityName}RequestType) => {
   const { data } = await httpClient.request<${entityName}ResponseType>({
-    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\${id}\`,
+    url: \`\/${entityName.toLowerCase()}s/\${id}\`,
     data: body,
     method: 'PATCH',
   });
@@ -99,7 +76,7 @@ const update${entityName} = async (id: string, body: ${entityName}RequestType) =
 
 const delete${entityName} = async (id: string) => {
   const { data } = await httpClient.request<void>({
-    url: \`\${BASE_URL}/${entityName.toLowerCase()}s/\${id}\`,
+    url: \`\/${entityName.toLowerCase()}s/\${id}\`,
     method: 'DELETE',
   });
 
@@ -115,12 +92,10 @@ export const ${entityName.toLowerCase()}ApiClient: ${entityName}ApiClientType = 
 };
 `;
 
-  const entityInterface = `export interface ${entityName}Type {
-${interfaceProperties}
-}
-`;
+  const entityInterface = generateTsTypeFromJson(entityJson, entityName);
 
-  const crudInterfaces = `
+  const crudInterfaces = `import { ${entityName}Type } from './types';
+
 export type ${entityName}RequestType = ${entityName}Type;
 
 export type ${entityName}ResponseType = ${entityName}Type;
@@ -141,9 +116,10 @@ export interface ${entityName}ApiClientType {
 }
 `;
 
-  const requestHooks = `import { useMutation, useQuery } from 'react-query';
+  const requestHooks = `import { useMutation, useQuery } from '@tanstack/react-query';
+
 import { ${entityName.toLowerCase()}ApiClient } from '../api/${entityName.toLowerCase()}Request';
-import { ${entityName}RequestType } from '../types/${entityName.toLowerCase()}Types';
+import { ${entityName}RequestType } from '../types/requestTypes';
 
 type Update${entityName}RequestType = { id: string; request: ${entityName}RequestType };
 
@@ -152,18 +128,17 @@ export const useGet${entityName}s = () => {
 
   const {
     data: ${entityName.toLowerCase()}s,
-    isSuccess: isLoaded,
-    isError: isGet${entityName}sError,
-    } = useQuery(
-    [queryKey],
-    () => ${entityName.toLowerCase()}ApiClient.get${entityName}s(),
-    {
-      retry: false,
-      useErrorBoundary: false,
-    },
-  );
+    isSuccess: is${entityName}sSuccess,
+    isLoading: is${entityName}sLoading,
+    isError: is${entityName}sError,
+  } = useQuery({
+    queryKey: [queryKey],
+    queryFn: () => ${entityName.toLowerCase()}ApiClient.get${entityName}s(),
+    retry: false,
+    throwOnError: false,
+  });
 
-  return { ${entityName.toLowerCase()}s, isLoaded, isGet${entityName}sError };
+  return { ${entityName.toLowerCase()}s, is${entityName}sSuccess, is${entityName}sLoading, is${entityName}sError };
 };
 
 export const useGet${entityName}ById = (id: string) => {
@@ -171,19 +146,18 @@ export const useGet${entityName}ById = (id: string) => {
 
   const {
     data: ${entityName.toLowerCase()},
-    isSuccess: isLoaded,
-    isError: isGet${entityName}Error,
-  } = useQuery(
-    [queryKey, id],
-    () => ${entityName.toLowerCase()}ApiClient.get${entityName}ById(id),
-    {
-      retry: false,
-      useErrorBoundary: false,
-      enabled: !!id,
-    },
-  );
+    isSuccess: is${entityName}Success,
+    isLoading: is${entityName}Loading,
+    isError: is${entityName}Error,
+  } = useQuery({
+    queryKey: [queryKey, id],
+    queryFn: () => ${entityName.toLowerCase()}ApiClient.get${entityName}ById(id),
+    retry: false,
+    throwOnError: false,
+    enabled: !!id,
+  });
 
-  return { ${entityName.toLowerCase()}, isLoaded, isGet${entityName}Error };
+  return { ${entityName.toLowerCase()}, is${entityName}Success, is${entityName}Loading, is${entityName}Error };
 };
 
 export const useCreate${entityName} = () => {
@@ -192,19 +166,18 @@ export const useCreate${entityName} = () => {
   const {
     data: ${entityName.toLowerCase()},
     mutate: onCreate${entityName},
-    isSuccess: isCreated,
-    isError: isCreatedError,
-  } = useMutation(
-    [queryKey],
-    (request: ${entityName}RequestType) =>
+    isSuccess: isCreate${entityName}Success,
+    isPending: isCreate${entityName}Pending,
+    isError: isCreate${entityName}Error,
+  } = useMutation({
+    mutationKey: [queryKey],
+    mutationFn: (request: ${entityName}RequestType) =>
       ${entityName.toLowerCase()}ApiClient.create${entityName}(request),
-    {
-      retry: false,
-      useErrorBoundary: false,
-    },
-  );
+    retry: false,
+    throwOnError: false,
+  });
 
-  return { ${entityName.toLowerCase()}, onCreate${entityName}, isCreated, isCreatedError };
+  return { ${entityName.toLowerCase()}, onCreate${entityName}, isCreate${entityName}Success, isCreate${entityName}Pending, isCreate${entityName}Error };
 };
 
 export const useUpdate${entityName} = () => {
@@ -213,19 +186,18 @@ export const useUpdate${entityName} = () => {
   const {
     data: ${entityName.toLowerCase()},
     mutate: onUpdate${entityName},
-    isSuccess: isUpdated,
-    isError: isUpdateError,
-  } = useMutation(
-    [queryKey],
-    ({ id, request }: Update${entityName}RequestType) =>
+    isSuccess: isUpdate${entityName}Success,
+    isPending: isUpdate${entityName}Pending,
+    isError: isUpdate${entityName}Error,
+  } = useMutation({
+    mutationKey: [queryKey],
+    mutationFn: ({ id, request }: Update${entityName}RequestType) =>
       ${entityName.toLowerCase()}ApiClient.update${entityName}(id, request),
-    {
-      retry: false,
-      useErrorBoundary: false,
-    },
-  );
+    retry: false,
+    throwOnError: false,
+  });
 
-  return { ${entityName.toLowerCase()}, onUpdate${entityName}, isUpdated, isUpdateError };
+  return { ${entityName.toLowerCase()}, onUpdate${entityName}, isUpdate${entityName}Success, isUpdate${entityName}Pending, isUpdate${entityName}Error };
 };
 
 export const useDelete${entityName} = () => {
@@ -233,37 +205,25 @@ export const useDelete${entityName} = () => {
 
   const {
     mutate: onDelete${entityName},
-    isSuccess: isDeleted,
-    isError: isDeleteError,
-  } = useMutation(
-    [queryKey],
-    (id: string) => ${entityName.toLowerCase()}ApiClient.delete${entityName}(id),
-    {
-      retry: false,
-      useErrorBoundary: false,
-    },
-  );
+    isSuccess: isDelete${entityName}Success,
+    isPending: isDelete${entityName}Pending,
+    isError: isDelete${entityName}Error,
+  } = useMutation({
+    mutationKey: [queryKey],
+    mutationFn: (id: string) => ${entityName.toLowerCase()}ApiClient.delete${entityName}(id),
+    retry: false,
+    throwOnError: false,
+  });
 
-  return { onDelete${entityName}, isDeleted, isDeleteError };
+  return { onDelete${entityName}, isDelete${entityName}Success, isDelete${entityName}Pending, isDelete${entityName}Error };
 };
-`;
-
-  const indexFile = `export { ${entityName.toLowerCase()}ApiClient } from './api/${entityName.toLowerCase()}Request';
-export * from './types/${entityName.toLowerCase()}Types';
-export {
-  useGet${entityName}s,
-  useGet${entityName}ById,
-  useCreate${entityName},
-  useUpdate${entityName},
-  useDelete${entityName},
-} from './model/requestHooks';
 `;
 
   return {
     api,
-    interfaces: entityInterface + crudInterfaces + apiInterfaces,
+    types: entityInterface,
+    interfaces: crudInterfaces + apiInterfaces,
     requestHooks,
-    indexFile,
   };
 };
 
@@ -271,63 +231,48 @@ program
   .version("1.0.0")
   .description("CLI tool to generate TanStack CRUD hooks and interfaces")
   .requiredOption("--entityName <type>", "Name of the entity")
-  .option(
-    "--entityProperties <type>",
-    "Properties of the entity in JSON format",
-  )
-  .option(
+  .requiredOption(
     "--entityFile <type>",
     "Path to the JSON file containing entity properties",
   )
   .action((options) => {
     const entityName = options.entityName;
-    let entityProperties: Entity = {};
+    let entityJson: JSONValue;
 
-    if (!options.entityFile && !options.entityProperties) {
+    try {
+      const fileContent = fs.readFileSync(options.entityFile, "utf-8");
+      entityJson = JSON.parse(fileContent);
+    } catch (err) {
       console.error(
-        `${redText}Either --entityProperties or --entityFile must be provided.${resetText}`,
+        `${redText}Failed to read or parse JSON file: ${err}${resetText}`,
       );
       process.exit(1);
     }
 
-    if (options.entityFile) {
-      const fileContent = fs.readFileSync(options.entityFile, "utf-8");
-      entityProperties = JSON.parse(fileContent);
-    } else {
-      entityProperties = JSON.parse(options.entityProperties);
-    }
-
-    const { api, interfaces, requestHooks, indexFile } = generateEntityCode(
+    const { api, types, interfaces, requestHooks } = generateEntityCode(
       entityName,
-      entityProperties,
+      entityJson,
     );
 
-    const entityDir = path.join(process.cwd(), entityName);
-    const apiDir = path.join(entityDir, "api");
-    const typesDir = path.join(entityDir, "types");
-    const modelDir = path.join(entityDir, "model");
-    const indexFilePath = path.join(process.cwd(), `index.ts`);
-    const exportLine = `export * from './${entityName}';\n`;
+    // Generating directories
+    const moduleDir = process.cwd();
 
-    ensureDirExists(entityDir);
+    const apiDir = path.join(moduleDir, "api");
+    const typesDir = path.join(moduleDir, "types");
+    const hooksDir = path.join(moduleDir, "hooks");
+
     ensureDirExists(apiDir);
     ensureDirExists(typesDir);
-    ensureDirExists(modelDir);
+    ensureDirExists(hooksDir);
 
-    if (!isFileContainsLine(indexFilePath, exportLine)) {
-      fs.appendFileSync(indexFilePath, exportLine);
-    }
-
+    // Saving files
     fs.writeFileSync(
       path.join(apiDir, `${entityName.toLowerCase()}Request.ts`),
       api,
     );
-    fs.writeFileSync(
-      path.join(typesDir, `${entityName.toLowerCase()}Types.ts`),
-      interfaces,
-    );
-    fs.writeFileSync(path.join(modelDir, `requestHooks.ts`), requestHooks);
-    fs.writeFileSync(path.join(entityDir, `index.ts`), indexFile);
+    fs.writeFileSync(path.join(typesDir, `types.ts`), types);
+    fs.writeFileSync(path.join(typesDir, `requestTypes.ts`), interfaces);
+    fs.writeFileSync(path.join(hooksDir, `requestHooks.ts`), requestHooks);
 
     console.log(`${greenText}"Files generated successfully!"${resetText}`);
   });
