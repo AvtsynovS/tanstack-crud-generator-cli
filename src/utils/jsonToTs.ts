@@ -1,4 +1,4 @@
-import { JSONValue } from "../types/types";
+import { JSONValue } from "../types/types.js";
 
 const capitalize = (name: string) =>
   name.charAt(0).toUpperCase() + name.slice(1);

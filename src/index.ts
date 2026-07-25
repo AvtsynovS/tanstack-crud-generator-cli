@@ -3,8 +3,9 @@
 import { program } from "commander";
 import fs from "fs";
 import path from "path";
-import { generateTsTypeFromJson } from "./utils/jsonToTs";
-import { JSONValue } from "./types/types";
+import { JSONValue } from "./types/types.js";
+import { generateTsTypeFromJson } from "./utils/jsonToTs.js";
+import { runPromptWizard } from "./features/prompt-wizard/promptWizard.js";
 
 interface GeneratedCode {
   api: string;
@@ -235,7 +236,18 @@ program
     "--entityFile <type>",
     "Path to the JSON file containing entity properties",
   )
-  .action((options) => {
+  .action(async (options) => {
+    // Интерактивный диалог для установки конфигураций форматирования
+    const formatterConfig = await runPromptWizard();
+
+    // Временный лог при записи правил форматирования
+    if (Object.keys(formatterConfig).length > 0) {
+      console.log(
+        `${greenText}Используются пути форматирования:${resetText}`,
+        formatterConfig,
+      );
+    }
+
     const entityName = options.entityName;
     let entityJson: JSONValue;
 
