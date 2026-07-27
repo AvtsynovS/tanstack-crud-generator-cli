@@ -9,6 +9,7 @@ import { EntitySpecification } from "./shared/types/dataProvider.js";
 
 import { runPromptWizard } from "./features/prompt-wizard/promptWizard.js";
 import { JsonDataProvider } from "./features/data-providers/JsonDataProvider.js";
+import { AstGenerator } from "./core/ast-generator/AstGenerator.js";
 
 interface GeneratedCode {
   api: string;
@@ -254,33 +255,12 @@ program
       const provider = new JsonDataProvider(options.source);
       const specifications = await provider.getSpecification();
 
+      const astGenerator = new AstGenerator();
+
       for (const spec of specifications) {
-        const entityName = spec.name;
+        console.log(`⏳ Generating files for an entity "${spec.name}"`);
 
-        const { api, types, interfaces, requestHooks } =
-          generateEntityCode(spec);
-
-        // Generating directories
-        const moduleDir = process.cwd();
-        const apiDir = path.join(moduleDir, "api");
-        const typesDir = path.join(moduleDir, "types");
-        const hooksDir = path.join(moduleDir, "hooks");
-
-        ensureDirExists(apiDir);
-        ensureDirExists(typesDir);
-        ensureDirExists(hooksDir);
-
-        // Saving files
-        fs.writeFileSync(
-          path.join(apiDir, `${entityName.toLowerCase()}Request.ts`),
-          api,
-        );
-        fs.writeFileSync(path.join(typesDir, `types.ts`), types);
-        fs.writeFileSync(path.join(typesDir, `requestTypes.ts`), interfaces);
-        fs.writeFileSync(
-          path.join(hooksDir, `${entityName.toLowerCase()}Request.ts`),
-          requestHooks,
-        );
+        await astGenerator.generateEntity(spec);
 
         console.log(`${greenText}"Files generated successfully!"${resetText}`);
       }
