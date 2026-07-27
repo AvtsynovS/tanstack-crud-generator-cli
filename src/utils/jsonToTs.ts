@@ -1,80 +1,26 @@
-import { JSONValue } from "../types/types.js";
+import {
+  EntitySpecification,
+  EntityProperty,
+} from "../shared/types/dataProvider.js";
 
-const capitalize = (name: string) =>
-  name.charAt(0).toUpperCase() + name.slice(1);
+const renderProperty = (prop: EntityProperty): string => {
+  const isOptional = !prop.required;
+  const comment = prop.description ? `  /** ${prop.description} */\n` : "";
+  return `${comment}  ${prop.name}${isOptional ? "?" : ""}: ${prop.type};`;
+};
 
-export const generateTsTypeFromJson = (
-  obj: JSONValue,
-  rootName: string,
-): string => {
+export const generateTsTypeFromSpec = (spec: EntitySpecification): string => {
   const typeDefs: string[] = [];
 
-  const parseValue = (
-    value: JSONValue,
-    propName?: string,
-    parentName?: string,
-  ): string => {
-    // Primitive or union
-    if (typeof value === "string") {
-      // Check array, example: ["string"]
-      const arrayMatch = value.match(/^\[\s*["']?(.+?)["']?\s*\]$/);
-      if (arrayMatch) return `${arrayMatch[1]}[]`;
-
-      return value
-        .split("|")
-        .map((p) => p.trim())
-        .join(" | ");
-    }
-
-    // Array
-    if (Array.isArray(value)) {
-      if (value.length === 0) return "any[]";
-      const first = value[0];
-
-      if (
-        typeof first === "object" &&
-        first !== null &&
-        !Array.isArray(first)
-      ) {
-        const typeName = `${rootName}${capitalize(propName!)}Type`;
-        typeDefs.push(generateObjectType(first, typeName));
-        return `${typeName}[]`;
-      } else {
-        return `${parseValue(first, propName, parentName)}[]`;
-      }
-    }
-
-    // Object
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      const typeName = `${rootName}${capitalize(propName!)}Type`;
-      typeDefs.push(generateObjectType(value, typeName));
-      return typeName;
-    }
-
-    return "any";
-  };
-
-  const generateObjectType = (
-    obj: Record<string, JSONValue>,
-    typeName: string,
-  ): string => {
-    const entries = Object.entries(obj)
-      .map(([key, val]) => `  ${key}: ${parseValue(val, key, typeName)};`)
-      .join("\n");
-
-    return `type ${typeName} = {\n${entries}\n};`;
-  };
-
-  let mainType = "";
-
-  if (typeof obj === "object" && obj !== null && !Array.isArray(obj)) {
-    const entries = Object.entries(obj)
-      .map(([key, val]) => `  ${key}: ${parseValue(val, key, rootName)};`)
-      .join("\n");
-    mainType = `export interface ${rootName}Type {\n${entries}\n}`;
-  } else {
-    mainType = `export type ${rootName}Type = ${parseValue(obj, rootName)}`;
+  if (spec.nestedTypes && Array.isArray(spec.nestedTypes)) {
+    spec.nestedTypes.forEach((nested) => {
+      const entries = nested.properties.map(renderProperty).join("\n");
+      typeDefs.push(`export type ${nested.name} = {\n${entries}\n};`);
+    });
   }
+
+  const mainEntries = spec.properties.map(renderProperty).join("\n");
+  const mainType = `export interface ${spec.name}Type {\n${mainEntries}\n}`;
 
   return [...typeDefs, mainType].join("\n\n");
 };
