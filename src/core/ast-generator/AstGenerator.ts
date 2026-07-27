@@ -57,17 +57,51 @@ export class AstGenerator {
   }
 
   private buildTypes(file: SourceFile, spec: EntitySpecification): void {
-    const propertiesStructure = spec.properties.map((prop) => ({
-      name: prop.name,
-      type: prop.type,
-      hasQuestionToken: !prop.required,
-    }));
+    const processSchema = (schema: EntitySpecification) => {
+      // Union
+      if (schema.type === "string" && Array.isArray(schema.enum)) {
+        file.addEnum({
+          name: schema.name,
+          isExported: true,
+          members: schema.enum.map((value) => ({
+            name: value,
+            value: value,
+          })),
+        });
+        return;
+      }
 
-    file.addInterface({
-      name: `${spec.name}Type`,
-      isExported: true,
-      properties: propertiesStructure,
-    });
+      // Enum
+      if (schema.type === "object" && Array.isArray(schema.properties)) {
+        const propertiesStructure = schema.properties.map((prop) => {
+          // Local union
+          let propType = prop.type;
+          if (prop.type === "string" && Array.isArray(prop.enum)) {
+            propType = prop.enum.map((val) => `'${val}'`).join(" | ");
+          }
+
+          return {
+            name: prop.name,
+            type: propType,
+            hasQuestionToken: !prop.required,
+          };
+        });
+
+        file.addInterface({
+          name: `${schema.name}Type`,
+          isExported: true,
+          properties: propertiesStructure,
+        });
+      }
+
+      if (schema.nestedTypes && Array.isArray(schema.nestedTypes)) {
+        schema.nestedTypes.forEach((nestedSchema) =>
+          processSchema(nestedSchema),
+        );
+      }
+    };
+
+    processSchema(spec);
   }
 
   private buildApi(file: SourceFile, spec: EntitySpecification): void {
