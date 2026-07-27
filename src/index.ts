@@ -4,8 +4,11 @@ import { program } from "commander";
 import fs from "fs";
 import path from "path";
 import { JSONValue } from "./types/types.js";
-import { generateTsTypeFromJson } from "./utils/jsonToTs.js";
+import { generateTsTypeFromSpec } from "./utils/jsonToTs.js";
+import { EntitySpecification } from "./shared/types/dataProvider.js";
+
 import { runPromptWizard } from "./features/prompt-wizard/promptWizard.js";
+import { JsonDataProvider } from "./features/data-providers/JsonDataProvider.js";
 
 interface GeneratedCode {
   api: string;
@@ -24,10 +27,11 @@ const ensureDirExists = (dirPath: string) => {
   }
 };
 
-const generateEntityCode = (
-  entityName: string,
-  entityJson: JSONValue,
-): GeneratedCode => {
+const generateEntityCode = (spec: EntitySpecification): GeneratedCode => {
+  const entityName = spec.name;
+
+  const entityInterface = generateTsTypeFromSpec(spec);
+
   // TODO: replace with your http client
   const api = `import { httpClient } from '@common/data-access';
 
@@ -92,8 +96,6 @@ export const ${entityName.toLowerCase()}ApiClient: ${entityName}ApiClientType = 
   delete${entityName},
 };
 `;
-
-  const entityInterface = generateTsTypeFromJson(entityJson, entityName);
 
   const crudInterfaces = `import { ${entityName}Type } from './types';
 
@@ -231,11 +233,7 @@ export const useDelete${entityName} = () => {
 program
   .version("1.0.0")
   .description("CLI tool to generate TanStack CRUD hooks and interfaces")
-  .requiredOption("--entityName <type>", "Name of the entity")
-  .requiredOption(
-    "--entityFile <type>",
-    "Path to the JSON file containing entity properties",
-  )
+  .requiredOption("-s, --source <type>", "Path to the JSON schema file")
   .action(async (options) => {
     // Интерактивный диалог для установки конфигураций форматирования
     const formatterConfig = await runPromptWizard();
@@ -252,41 +250,44 @@ program
     let entityJson: JSONValue;
 
     try {
-      const fileContent = fs.readFileSync(options.entityFile, "utf-8");
-      entityJson = JSON.parse(fileContent);
+      // Получаем структурированные данные из провайдера
+      const provider = new JsonDataProvider(options.source);
+      const specifications = await provider.getSpecification();
+
+      for (const spec of specifications) {
+        const entityName = spec.name;
+
+        const { api, types, interfaces, requestHooks } =
+          generateEntityCode(spec);
+
+        // Generating directories
+        const moduleDir = process.cwd();
+        const apiDir = path.join(moduleDir, "api");
+        const typesDir = path.join(moduleDir, "types");
+        const hooksDir = path.join(moduleDir, "hooks");
+
+        ensureDirExists(apiDir);
+        ensureDirExists(typesDir);
+        ensureDirExists(hooksDir);
+
+        // Saving files
+        fs.writeFileSync(
+          path.join(apiDir, `${entityName.toLowerCase()}Request.ts`),
+          api,
+        );
+        fs.writeFileSync(path.join(typesDir, `types.ts`), types);
+        fs.writeFileSync(path.join(typesDir, `requestTypes.ts`), interfaces);
+        fs.writeFileSync(
+          path.join(hooksDir, `${entityName.toLowerCase()}Request.ts`),
+          requestHooks,
+        );
+
+        console.log(`${greenText}"Files generated successfully!"${resetText}`);
+      }
     } catch (err) {
-      console.error(
-        `${redText}Failed to read or parse JSON file: ${err}${resetText}`,
-      );
+      console.error(`${redText}Ошибка выполнения CLI: ${err}${resetText}`);
       process.exit(1);
     }
-
-    const { api, types, interfaces, requestHooks } = generateEntityCode(
-      entityName,
-      entityJson,
-    );
-
-    // Generating directories
-    const moduleDir = process.cwd();
-
-    const apiDir = path.join(moduleDir, "api");
-    const typesDir = path.join(moduleDir, "types");
-    const hooksDir = path.join(moduleDir, "hooks");
-
-    ensureDirExists(apiDir);
-    ensureDirExists(typesDir);
-    ensureDirExists(hooksDir);
-
-    // Saving files
-    fs.writeFileSync(
-      path.join(apiDir, `${entityName.toLowerCase()}Request.ts`),
-      api,
-    );
-    fs.writeFileSync(path.join(typesDir, `types.ts`), types);
-    fs.writeFileSync(path.join(typesDir, `requestTypes.ts`), interfaces);
-    fs.writeFileSync(path.join(hooksDir, `requestHooks.ts`), requestHooks);
-
-    console.log(`${greenText}"Files generated successfully!"${resetText}`);
   });
 
 program.parse(process.argv);
