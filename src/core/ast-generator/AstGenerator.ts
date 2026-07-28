@@ -6,7 +6,10 @@ import {
   VariableDeclarationKind,
 } from "ts-morph";
 import path from "path";
-import { EntitySpecification } from "../../shared/types/dataProvider.js";
+import {
+  EntityProperty,
+  EntitySpecification,
+} from "../../shared/types/dataProvider.js";
 
 export class AstGenerator {
   private project: Project;
@@ -128,6 +131,28 @@ export class AstGenerator {
 
     collectTypeNames(spec);
 
+    const buildJsDocLines = (prop: EntityProperty): string[] => {
+      const docs: string[] = [];
+
+      if (prop.description) {
+        docs.push(prop.description);
+      }
+      if (prop.format) {
+        docs.push(`@format ${prop.format}`);
+      }
+      if (prop.pattern) {
+        docs.push(`@pattern ${prop.pattern}`);
+      }
+      if (prop.minimum !== undefined) {
+        docs.push(`@minimum ${prop.minimum}`);
+      }
+      if (prop.maximum !== undefined) {
+        docs.push(`@maximum ${prop.maximum}`);
+      }
+
+      return docs;
+    };
+
     const processSchema = (schema: EntitySpecification) => {
       // Global Enum
       if (schema.type === "string" && Array.isArray(schema.enum)) {
@@ -159,10 +184,13 @@ export class AstGenerator {
             propType = `${prop.type}Type`;
           }
 
+          const jsDocLines = buildJsDocLines(prop);
+
           return {
             name: prop.name,
             type: propType,
             hasQuestionToken: !prop.required,
+            docs: jsDocLines.length > 0 ? [jsDocLines.join("\n")] : undefined,
           };
         });
 
