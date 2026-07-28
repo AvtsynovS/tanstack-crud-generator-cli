@@ -28,6 +28,23 @@ export class AstGenerator {
 
     const hooksDir = path.join(this.outputDir, "hooks");
 
+    const requestTypesFile = this.project.createSourceFile(
+      path.join(this.outputDir, "types", "requestTypes.ts"),
+      `import { ${spec.name}Type } from './types.js';
+
+       export type ${spec.name}RequestType = ${spec.name}Type;
+       export type ${spec.name}ResponseType = ${spec.name}Type;
+
+       export interface ${spec.name}ApiClientType {
+       get${spec.name}s: () => Promise<${spec.name}ResponseType[]>;
+       get${spec.name}ById: (id: string) => Promise<${spec.name}ResponseType>;
+       create${spec.name}: (request: ${spec.name}RequestType) => Promise<${spec.name}ResponseType>;
+       update${spec.name}: (id: string, request: ${spec.name}RequestType) => Promise<${spec.name}ResponseType>;
+       delete${spec.name}: (id: string) => Promise<void>;
+      }`,
+      { overwrite: true },
+    );
+
     const typesFile = this.project.createSourceFile(
       path.join(this.outputDir, "types", "types.ts"),
       "",
@@ -35,7 +52,7 @@ export class AstGenerator {
     );
 
     const apiFile = this.project.createSourceFile(
-      path.join(this.outputDir, "api", `${entityNameLower}Request.ts`),
+      path.join(this.outputDir, "api", `${entityNameLower}Requests.ts`),
       "",
       { overwrite: true },
     );
@@ -104,13 +121,94 @@ export class AstGenerator {
     processSchema(spec);
   }
 
+  /**
+   * Generating API-client in the api folder
+   */
   private buildApi(file: SourceFile, spec: EntitySpecification): void {
+    const name = spec.name;
+    const nameLower = name.toLowerCase();
+    const urlPath = `/${nameLower}s`;
+
     file.addImportDeclaration({
       moduleSpecifier: "@common/data-access",
       namedImports: ["httpClient"],
     });
+
+    file.addImportDeclaration({
+      moduleSpecifier: "../types/requestTypes.js",
+      namedImports: [
+        `${name}ApiClientType`,
+        `${name}RequestType`,
+        `${name}ResponseType`,
+      ],
+    });
+
+    file.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [
+        {
+          name: `get${name}s`,
+          initializer: `async () => {\n  const { data } = await httpClient.request<${name}ResponseType[]>({ \n    url: \`${urlPath}/\`,\n    method: 'GET',\n  });\n  return data;\n}`,
+        },
+      ],
+    });
+
+    file.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [
+        {
+          name: `get${name}ById`,
+          initializer: `async (id: string) => {\n  const { data } = await httpClient.request<${name}ResponseType>({ \n    url: \`${urlPath}/\${id}\`,\n    method: 'GET',\n  });\n  return data;\n}`,
+        },
+      ],
+    });
+
+    file.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [
+        {
+          name: `create${name}`,
+          initializer: `async (request: ${name}RequestType) => {\n  const { data } = await httpClient.request<${name}ResponseType>({ \n    url: \`${urlPath}/\`,\n    data: request,\n    method: 'POST',\n  });\n  return data;\n}`,
+        },
+      ],
+    });
+
+    file.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [
+        {
+          name: `update${name}`,
+          initializer: `async (id: string, body: ${name}RequestType) => {\n  const { data } = await httpClient.request<${name}ResponseType>({ \n    url: \`${urlPath}/\${id}\`,\n    data: body,\n    method: 'PATCH',\n  });\n  return data;\n}`,
+        },
+      ],
+    });
+
+    file.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [
+        {
+          name: `delete${name}`,
+          initializer: `async (id: string) => {\n  const { data } = await httpClient.request<void>({ \n    url: \`${urlPath}/\${id}\`,\n    method: 'DELETE',\n  });\n  return data;\n}`,
+        },
+      ],
+    });
+
+    file.addVariableStatement({
+      isExported: true,
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [
+        {
+          name: `${nameLower}ApiClient`,
+          type: `${name}ApiClientType`,
+          initializer: `{\n  get${name}s,\n  get${name}ById,\n  create${name},\n  update${name},\n  delete${name},\n}`,
+        },
+      ],
+    });
   }
 
+  /**
+   * Generating keys in the hooks folder
+   */
   private buildKeys(file: SourceFile, spec: EntitySpecification): void {
     const entityNameLower = spec.name.toLowerCase();
 
@@ -147,7 +245,7 @@ export class AstGenerator {
   }
 
   /**
-   * Generating hooks and keys in the hooks folder
+   * Generating hooks in the hooks folder
    */
   private buildSeparatedHooks(
     hooksDir: string,
