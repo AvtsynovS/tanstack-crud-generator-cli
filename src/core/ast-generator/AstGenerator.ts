@@ -30,18 +30,7 @@ export class AstGenerator {
 
     const requestTypesFile = this.project.createSourceFile(
       path.join(this.outputDir, "types", "requestTypes.ts"),
-      `import { ${spec.name}Type } from './types.js';
-
-       export type ${spec.name}RequestType = ${spec.name}Type;
-       export type ${spec.name}ResponseType = ${spec.name}Type;
-
-       export interface ${spec.name}ApiClientType {
-       get${spec.name}s: () => Promise<${spec.name}ResponseType[]>;
-       get${spec.name}ById: (id: string) => Promise<${spec.name}ResponseType>;
-       create${spec.name}: (request: ${spec.name}RequestType) => Promise<${spec.name}ResponseType>;
-       update${spec.name}: (id: string, request: ${spec.name}RequestType) => Promise<${spec.name}ResponseType>;
-       delete${spec.name}: (id: string) => Promise<void>;
-      }`,
+      "",
       { overwrite: true },
     );
 
@@ -63,22 +52,87 @@ export class AstGenerator {
       { overwrite: true },
     );
 
+    this.buildRequestTypes(requestTypesFile, spec);
     this.buildTypes(typesFile, spec);
     this.buildApi(apiFile, spec);
     this.buildKeys(keysFile, spec);
-
-    this.buildSeparatedHooks(hooksDir, spec);
+    this.buildHooks(hooksDir, spec);
 
     // Save files to cd
     await this.project.save();
   }
 
+  /**
+   * Generating requestTypes in the types folder
+   */
+  private buildRequestTypes(file: SourceFile, spec: EntitySpecification): void {
+    const name = spec.name;
+
+    file.addImportDeclaration({
+      moduleSpecifier: "./types.js",
+      namedImports: [`${name}Type`],
+    });
+
+    file.addTypeAlias({
+      name: `${name}RequestType`,
+      type: `${name}Type`,
+      isExported: true,
+    });
+
+    file.addTypeAlias({
+      name: `${name}ResponseType`,
+      type: `${name}Type`,
+      isExported: true,
+    });
+
+    file.addInterface({
+      name: `${name}ApiClientType`,
+      isExported: true,
+      properties: [
+        {
+          name: `get${name}s`,
+          type: `() => Promise<${name}ResponseType[]>`,
+        },
+        {
+          name: `get${name}ById`,
+          type: `(id: string) => Promise<${name}ResponseType>`,
+        },
+        {
+          name: `create${name}`,
+          type: `(request: ${name}RequestType) => Promise<${name}ResponseType>`,
+        },
+        {
+          name: `update${name}`,
+          type: `(id: string, request: ${name}RequestType) => Promise<${name}ResponseType>`,
+        },
+        {
+          name: `delete${name}`,
+          type: `(id: string) => Promise<void>`,
+        },
+      ],
+    });
+  }
+
+  /**
+   * Generating types in the types folder
+   */
   private buildTypes(file: SourceFile, spec: EntitySpecification): void {
+    const customTypeNames = new Set<string>();
+
+    const collectTypeNames = (schema: EntitySpecification) => {
+      customTypeNames.add(schema.name);
+      if (schema.nestedTypes && Array.isArray(schema.nestedTypes)) {
+        schema.nestedTypes.forEach(collectTypeNames);
+      }
+    };
+
+    collectTypeNames(spec);
+
     const processSchema = (schema: EntitySpecification) => {
-      // Union
+      // Global Enum
       if (schema.type === "string" && Array.isArray(schema.enum)) {
         file.addEnum({
-          name: schema.name,
+          name: `${schema.name}Type`,
           isExported: true,
           members: schema.enum.map((value) => ({
             name: value,
@@ -88,13 +142,21 @@ export class AstGenerator {
         return;
       }
 
-      // Enum
+      if (schema.nestedTypes && Array.isArray(schema.nestedTypes)) {
+        schema.nestedTypes.forEach((nestedSchema) =>
+          processSchema(nestedSchema),
+        );
+      }
+
       if (schema.type === "object" && Array.isArray(schema.properties)) {
         const propertiesStructure = schema.properties.map((prop) => {
-          // Local union
           let propType = prop.type;
+
+          // Local Union
           if (prop.type === "string" && Array.isArray(prop.enum)) {
             propType = prop.enum.map((val) => `'${val}'`).join(" | ");
+          } else if (customTypeNames.has(prop.type)) {
+            propType = `${prop.type}Type`;
           }
 
           return {
@@ -109,12 +171,6 @@ export class AstGenerator {
           isExported: true,
           properties: propertiesStructure,
         });
-      }
-
-      if (schema.nestedTypes && Array.isArray(schema.nestedTypes)) {
-        schema.nestedTypes.forEach((nestedSchema) =>
-          processSchema(nestedSchema),
-        );
       }
     };
 
@@ -247,10 +303,7 @@ export class AstGenerator {
   /**
    * Generating hooks in the hooks folder
    */
-  private buildSeparatedHooks(
-    hooksDir: string,
-    spec: EntitySpecification,
-  ): void {
+  private buildHooks(hooksDir: string, spec: EntitySpecification): void {
     const name = spec.name;
     const nameLower = name.toLowerCase();
 
@@ -264,11 +317,11 @@ export class AstGenerator {
       namedImports: ["useQuery"],
     });
     fileGetList.addImportDeclaration({
-      moduleSpecifier: `./${nameLower}.keys.js`,
+      moduleSpecifier: `./${nameLower}.keys.ts`,
       namedImports: [`${nameLower}QueryKeys`],
     });
     fileGetList.addImportDeclaration({
-      moduleSpecifier: `../api/${nameLower}Request.js`,
+      moduleSpecifier: `../api/${nameLower}Requests.ts`,
       namedImports: [`${nameLower}ApiClient`],
     });
 
@@ -293,11 +346,11 @@ export class AstGenerator {
       namedImports: ["useQuery"],
     });
     fileGetOne.addImportDeclaration({
-      moduleSpecifier: `./${nameLower}.keys.js`,
+      moduleSpecifier: `./${nameLower}.keys.ts`,
       namedImports: [`${nameLower}QueryKeys`],
     });
     fileGetOne.addImportDeclaration({
-      moduleSpecifier: `../api/${nameLower}Request.js`,
+      moduleSpecifier: `../api/${nameLower}Requests.ts`,
       namedImports: [`${nameLower}ApiClient`],
     });
 
@@ -322,11 +375,11 @@ export class AstGenerator {
       namedImports: ["useMutation"],
     });
     fileCreate.addImportDeclaration({
-      moduleSpecifier: `../api/${nameLower}Request.js`,
+      moduleSpecifier: `../api/${nameLower}Requests.ts`,
       namedImports: [`${nameLower}ApiClient`],
     });
     fileCreate.addImportDeclaration({
-      moduleSpecifier: "../types/requestTypes.js",
+      moduleSpecifier: "../types/requestTypes.ts",
       namedImports: [`${name}RequestType`],
     });
 
@@ -351,11 +404,11 @@ export class AstGenerator {
       namedImports: ["useMutation"],
     });
     fileUpdate.addImportDeclaration({
-      moduleSpecifier: `../api/${nameLower}Request.js`,
+      moduleSpecifier: `../api/${nameLower}Requests.ts`,
       namedImports: [`${nameLower}ApiClient`],
     });
     fileUpdate.addImportDeclaration({
-      moduleSpecifier: "../types/requestTypes.js",
+      moduleSpecifier: "../types/requestTypes.ts",
       namedImports: [`${name}RequestType`],
     });
 
@@ -384,7 +437,7 @@ export class AstGenerator {
       namedImports: ["useMutation"],
     });
     fileDelete.addImportDeclaration({
-      moduleSpecifier: `../api/${nameLower}Request.js`,
+      moduleSpecifier: `../api/${nameLower}Requests.ts`,
       namedImports: [`${nameLower}ApiClient`],
     });
 
