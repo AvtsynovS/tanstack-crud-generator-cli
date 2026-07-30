@@ -13,68 +13,6 @@ export class JsonDataProvider implements DataProvider {
     this.filePath = path.resolve(process.cwd(), filePath);
   }
 
-  async getSpecification(): Promise<EntitySpecification[]> {
-    try {
-      const rawData = await fs.readFile(this.filePath, "utf-8");
-      const parsed = JSON.parse(rawData);
-      const dataArray = Array.isArray(parsed) ? parsed : [parsed];
-
-      return dataArray.map((item, index) => this.parseSchema(item, index));
-    } catch (error: any) {
-      throw new Error(
-        `[JsonDataProvider] Failed to parse JSON file: ${error.message}`,
-      );
-    }
-  }
-
-  private parseSchema(item: any, index: number): EntitySpecification {
-    if (!item.name || typeof item.name !== "string") {
-      throw new Error(
-        `Invalid schema name at index ${index}. Property "name" is required.`,
-      );
-    }
-
-    const type = item.type === "string" ? "string" : "object";
-
-    // Global Enum
-    if (type === "string") {
-      if (!Array.isArray(item.enum)) {
-        throw new Error(
-          `Enum schema "${item.name}" must have an "enum" array of strings.`,
-        );
-      }
-      return {
-        name: item.name,
-        type: "string",
-        enum: item.enum.map(String),
-      };
-    }
-
-    // Interface
-    if (!Array.isArray(item.properties)) {
-      throw new Error(
-        `Object schema "${item.name}" must have a "properties" array.`,
-      );
-    }
-
-    const properties = item.properties.map((prop: any) =>
-      this.mapProperty(prop, item.name),
-    );
-
-    const nestedTypes = Array.isArray(item.nestedTypes)
-      ? item.nestedTypes.map((nested: any, nIdx: number) =>
-          this.parseSchema(nested, nIdx),
-        )
-      : undefined;
-
-    return {
-      name: item.name,
-      type: "object",
-      properties,
-      nestedTypes,
-    };
-  }
-
   private mapProperty(prop: any, contextName: string): EntityProperty {
     if (!prop.name || typeof prop.name !== "string") {
       throw new Error(
@@ -98,6 +36,91 @@ export class JsonDataProvider implements DataProvider {
       enum: Array.isArray(prop.enum) ? prop.enum.map(String) : undefined,
       minimum: typeof prop.minimum === "number" ? prop.minimum : undefined,
       maximum: typeof prop.maximum === "number" ? prop.maximum : undefined,
+    };
+  }
+
+  async getSpecification(): Promise<EntitySpecification[]> {
+    try {
+      const rawData = await fs.readFile(this.filePath, "utf-8");
+      const parsed = JSON.parse(rawData);
+
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        Array.isArray(parsed)
+      ) {
+        throw new Error(
+          "Root of the JSON file must be a Key-Value object (dictionary of entities)",
+        );
+      }
+
+      return Object.entries(parsed).map(
+        ([entityName, schema]: [string, any], index) => {
+          return this.parseSchema(entityName, schema, index);
+        },
+      );
+    } catch (error: any) {
+      throw new Error(
+        `[JsonDataProvider] Failed to parse JSON file: ${error.message}`,
+      );
+    }
+  }
+
+  private parseSchema(
+    name: string,
+    item: any,
+    index: number,
+  ): EntitySpecification {
+    if (!name || typeof name !== "string") {
+      throw new Error(`Invalid schema name at index ${index}`);
+    }
+    if (typeof item !== "object" || item === null) {
+      throw new Error(`Schema definition for "${name}" must be an object`);
+    }
+
+    const type = item.type === "string" ? "string" : "object";
+
+    // Global Enum
+    if (type === "string") {
+      if (!Array.isArray(item.enum)) {
+        throw new Error(
+          `Enum schema "${name}" must have an "enum" array of strings`,
+        );
+      }
+      return {
+        name,
+        type: "string",
+        enum: item.enum.map(String),
+      };
+    }
+
+    // Interface
+    if (!Array.isArray(item.properties)) {
+      throw new Error(`Object schema "${name}" must have a "properties" array`);
+    }
+
+    const properties = item.properties.map((prop: any) =>
+      this.mapProperty(prop, name),
+    );
+
+    let nestedTypes: EntitySpecification[] | undefined;
+
+    if (
+      typeof item.nestedTypes === "object" &&
+      item.nestedTypes !== null &&
+      !Array.isArray(item.nestedTypes)
+    ) {
+      nestedTypes = Object.entries(item.nestedTypes).map(
+        ([nestedName, nestedSchema]: [string, any], nIdx) =>
+          this.parseSchema(nestedName, nestedSchema, nIdx),
+      );
+    }
+
+    return {
+      name,
+      type: "object",
+      properties,
+      nestedTypes,
     };
   }
 }
