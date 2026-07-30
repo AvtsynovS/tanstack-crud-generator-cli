@@ -1,0 +1,70 @@
+{
+  "Todo": {
+    "type": "object",
+    "properties": [
+      { "name": "id", "type": "string", "required": true, "format": "uuid" },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false,
+        "minimum": 1,
+        "maximum": 5
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": true,
+        "pattern": "^[A-Z]"
+      },
+      { "name": "completed", "type": "boolean", "required": true },
+      { "name": "meta", "type": "TodoMeta", "required": false },
+      {
+        "name": "status",
+        "type": "TodoStatus",
+        "required": true,
+        "description": "Ссылка на глобальный Enum"
+      },
+      {
+        "name": "priority",
+        "type": "string",
+        "required": true,
+        "enum": ["low", "medium", "high"],
+        "description": "Локальный Union"
+      }
+    ],
+    "nestedTypes": {
+      "TodoMeta": {
+        "type": "object",
+        "properties": [
+          { "name": "createdAt", "type": "string", "required": true },
+          { "name": "updatedAt", "type": "string", "required": false }
+        ]
+      },
+      "TodoStatus": {
+        "type": "string",
+        "enum": ["pending", "completed", "archived"]
+      }
+    }
+  },
+  "User": {
+    "type": "object",
+    "properties": [
+      { "name": "id", "type": "string", "required": true, "format": "uuid" },
+      {
+        "name": "email",
+        "type": "string",
+        "required": true,
+        "format": "email"
+      },
+      { "name": "firstName", "type": "string", "required": true },
+      { "name": "lastName", "type": "string", "required": false },
+      { "name": "role", "type": "UserRole", "required": true }
+    ],
+    "nestedTypes": {
+      "UserRole": {
+        "type": "string",
+        "enum": ["admin", "manager", "user"]
+      }
+    }
+  }
+}

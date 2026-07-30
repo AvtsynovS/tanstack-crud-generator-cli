@@ -1,12 +1,12 @@
-import { Project, QuoteKind, IndentationText } from "ts-morph";
-import path from "path";
-import { EntitySpecification } from "../../shared/types/dataProvider.js";
-import { CliConfig } from "../../features/config-manager/configManager.js";
+import { Project, QuoteKind, IndentationText } from 'ts-morph';
+import path from 'path';
+import { EntitySpecification } from '../../shared/types/dataProvider.js';
+import { CliConfig } from '../../features/config-manager/configManager.js';
 
-import { buildRequestTypes, buildTypes } from "../templates/types.template.js";
-import { buildApi } from "../templates/api.template.js";
-import { buildKeys } from "../templates/keys.template.js";
-import { buildHooks } from "../templates/hooks.template.js";
+import { buildRequestTypes, buildTypes } from '../templates/types.template.js';
+import { buildApi } from '../templates/api.template.js';
+import { buildKeys } from '../templates/keys.template.js';
+import { buildHooks } from '../templates/hooks.template.js';
 
 export class AstGenerator {
   private project: Project;
@@ -32,10 +32,10 @@ export class AstGenerator {
       return `./${fileName}`;
     }
     let relativePath = path.relative(fromDir, path.join(toDir, fileName));
-    if (!relativePath.startsWith(".") && !relativePath.startsWith("/")) {
+    if (!relativePath.startsWith('.') && !relativePath.startsWith('/')) {
       relativePath = `./${relativePath}`;
     }
-    return relativePath.replace(/\\/g, "/");
+    return relativePath.replace(/\\/g, '/');
   }
 
   async generateEntity(spec: EntitySpecification): Promise<void> {
@@ -53,25 +53,25 @@ export class AstGenerator {
 
     const requestTypesFile = this.project.createSourceFile(
       path.join(targetTypesDir, `${entityNameLower}RequestTypes.ts`),
-      "",
+      '',
       { overwrite: true },
     );
 
     const typesFile = this.project.createSourceFile(
       path.join(targetTypesDir, `${entityNameLower}Types.ts`),
-      "",
+      '',
       { overwrite: true },
     );
 
     const apiFile = this.project.createSourceFile(
       path.join(targetApiDir, `${entityNameLower}Requests.ts`),
-      "",
+      '',
       { overwrite: true },
     );
 
     const keysFile = this.project.createSourceFile(
       path.join(targetHooksDir, `${entityNameLower}.keys.ts`),
-      "",
+      '',
       { overwrite: true },
     );
 
@@ -103,8 +103,22 @@ export class AstGenerator {
       apiImportPathFromHooks,
       typesImportPathFromHooks,
       (filePath: string) =>
-        this.project.createSourceFile(filePath, "", { overwrite: true }),
+        this.project.createSourceFile(filePath, '', { overwrite: true }),
     );
+
+    const { formatWithPrettier } = await import(
+      '../../features/formatter/prettierFormatter.js'
+    );
+
+    const sourceFiles = this.project.getSourceFiles();
+
+    for (const file of sourceFiles) {
+      const rawText = file.getFullText();
+
+      const formattedText = await formatWithPrettier(rawText, this.config);
+
+      file.replaceWithText(formattedText);
+    }
 
     await this.project.save();
   }
