@@ -1,25 +1,23 @@
 #!/usr/bin/env node
 
-import { program } from "commander";
-import { runPromptWizard } from "./features/prompt-wizard/promptWizard.js";
-import { JsonDataProvider } from "./features/data-providers/JsonDataProvider.js";
-import { AstGenerator } from "./core/ast-generator/AstGenerator.js";
-import { configManager } from "./features/config-manager/configManager.js";
-import { DataProvider } from "./shared/types/dataProvider.js";
-
-const greenText = "\x1b[32m";
-const redText = "\x1b[31m";
-const resetText = "\x1b[0m";
+import { program } from 'commander';
+import { runPromptWizard } from './features/prompt-wizard/promptWizard.js';
+import { JsonDataProvider } from './features/data-providers/JsonDataProvider.js';
+import { AstGenerator } from './core/ast-generator/AstGenerator.js';
+import { configManager } from './features/config-manager/configManager.js';
+import { DataProvider } from './shared/types/dataProvider.js';
+import { isPrettierConfigValid } from './features/formatter/utils.js';
+import { color } from './shared/config/constants.js';
 
 function getDataProvider(sourcePath: string): DataProvider {
   const lowerPath = sourcePath.toLowerCase();
 
   if (
-    sourcePath.startsWith("http://") ||
-    sourcePath.startsWith("https://") ||
-    lowerPath.endsWith(".yaml") ||
-    lowerPath.endsWith(".yml") ||
-    lowerPath.includes("swagger")
+    sourcePath.startsWith('http://') ||
+    sourcePath.startsWith('https://') ||
+    lowerPath.endsWith('.yaml') ||
+    lowerPath.endsWith('.yml') ||
+    lowerPath.includes('swagger')
   ) {
     // return new OpenApiDataProvider(sourcePath);
   }
@@ -28,12 +26,12 @@ function getDataProvider(sourcePath: string): DataProvider {
 }
 
 program
-  .version("1.0.0")
-  .description("CLI tool to generate TanStack CRUD hooks and interfaces")
-  .option("-s, --source <type>", "Path to the JSON schema file")
+  .version('1.0.0')
+  .description('CLI tool to generate TanStack CRUD hooks and interfaces')
+  .option('-s, --source <type>', 'Path to the JSON schema file')
   .option(
-    "-c, --config",
-    "Run interactive setup wizard for generator configuration",
+    '-c, --config',
+    'Run interactive setup wizard for generator configuration',
   )
   .action(async (options) => {
     if (options.config) {
@@ -47,16 +45,18 @@ program
     if (options.source) {
       if (!configManager.exists()) {
         console.log(
-          `${redText}Файл конфигурации .tsgenrc.json не найден.${resetText}`,
+          `${color.error}Configuration file .tsgenrc.json not found${color.default}`,
         );
         console.log(
-          "Инициализируем автоматическую настройку перед генерацией...\n",
+          'Initializing automatic configuration before generation...\n',
         );
 
         await runPromptWizard();
       }
 
       const activeConfig = configManager.read();
+
+      const isPrettierValid = isPrettierConfigValid(activeConfig);
 
       try {
         const provider = getDataProvider(options.source);
@@ -69,22 +69,34 @@ program
 
           await astGenerator.generateEntity(spec);
 
+          if (
+            activeConfig.customFormattersEnabled &&
+            activeConfig.prettierConfigPath &&
+            !isPrettierValid
+          ) {
+            console.log(
+              `${color.warning}⚠️  [Prettier] Failed to read config file at ${activeConfig.prettierConfigPath}. Built-in rules used ${color.default}`,
+            );
+          }
+
           console.log(
-            `${greenText}"Files generated successfully!"${resetText}`,
+            `${color.success}"Files generated successfully!"${color.default}`,
           );
         }
       } catch (err) {
-        console.error(`${redText}Ошибка выполнения CLI: ${err}${resetText}`);
+        console.error(
+          `${color.error}CLI execution error: ${err}${color.default}`,
+        );
         process.exit(1);
       }
       return;
     }
 
     console.log(
-      `${redText}Ошибка: Укажите хотя бы один рабочий флаг.${resetText}`,
+      `${color.error}Error: Please specify at least one working flag${color.default}`,
     );
     console.log(
-      "Используйте: \n  tsgen -s <путь_к_схеме> (для генерации) \n  tsgen -c (для настройки конфигурации)",
+      'Use: \n tsgen -s <path_to_scheme> (for generation) \n tsgen -c (for configuration)',
     );
     process.exit(1);
   });
