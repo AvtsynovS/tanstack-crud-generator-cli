@@ -6,7 +6,10 @@ import { JsonDataProvider } from './features/data-providers/JsonDataProvider.js'
 import { AstGenerator } from './core/ast-generator/AstGenerator.js';
 import { configManager } from './features/config-manager/configManager.js';
 import { DataProvider } from './shared/types/dataProvider.js';
-import { isPrettierConfigValid } from './features/formatter/utils.js';
+import {
+  isEslintConfigValid,
+  isPrettierConfigValid,
+} from './features/utils/utils.js';
 import { color } from './shared/config/constants.js';
 
 function getDataProvider(sourcePath: string): DataProvider {
@@ -57,6 +60,7 @@ program
       const activeConfig = configManager.read();
 
       const isPrettierValid = isPrettierConfigValid(activeConfig);
+      const isEslintValid = isEslintConfigValid(activeConfig);
 
       try {
         const provider = getDataProvider(options.source);
@@ -76,6 +80,16 @@ program
           ) {
             console.log(
               `${color.warning}⚠️  [Prettier] Failed to read config file at ${activeConfig.prettierConfigPath}. Built-in rules used ${color.default}`,
+            );
+          }
+
+          if (
+            activeConfig.customFormattersEnabled &&
+            activeConfig.eslintConfigPath &&
+            !isEslintValid
+          ) {
+            console.log(
+              `${color.warning}⚠️  [ESLint] Failed to read config file at ${activeConfig.eslintConfigPath}. Built-in rules used${color.default}`,
             );
           }
 

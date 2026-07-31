@@ -28,3 +28,7 @@ yarn-debug.log*
 yarn-error.log*
 
 ideas.md
+
+# temp files
+.tsgenrc.json
+eslint.config.js

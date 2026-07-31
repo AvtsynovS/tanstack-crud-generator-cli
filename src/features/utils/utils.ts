@@ -9,3 +9,11 @@ export const isPrettierConfigValid = (config: CliConfig) => {
   const absolutePath = path.resolve(process.cwd(), config.prettierConfigPath);
   return fs.existsSync(absolutePath);
 };
+
+export const isEslintConfigValid = (config: CliConfig) => {
+  if (!config.customFormattersEnabled || !config.eslintConfigPath) {
+    return true;
+  }
+  const absolutePath = path.resolve(process.cwd(), config.eslintConfigPath);
+  return fs.existsSync(absolutePath);
+};

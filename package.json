@@ -19,13 +19,16 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
+    "@eslint/js": "^10.0.1",
     "chalk": "^5.4.1",
     "commander": "^10.0.1",
+    "eslint": "^10.8.0",
     "fs-extra": "^11.3.0",
     "prettier": "^3.5.3",
     "rimraf": "^6.0.1",
     "ts-morph": "^28.0.0",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript-eslint": "^8.65.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
