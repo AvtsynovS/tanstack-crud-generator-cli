@@ -1,5 +1,5 @@
-import fs from "fs-extra";
-import path from "path";
+import fs from 'fs-extra';
+import path from 'path';
 
 export interface CliConfig {
   outputDir: string;
@@ -12,14 +12,14 @@ export interface CliConfig {
   eslintConfigPath?: string;
 }
 
-const CONFIG_FILE_NAME = ".tsgenrc.json";
+const CONFIG_FILE_NAME = '.tsgenrc.json';
 
 export const DEFAULT_CONFIG: CliConfig = {
-  outputDir: "./",
+  outputDir: './',
   createSubdirs: true,
-  apiDirName: "api",
-  typesDirName: "types",
-  hooksDirName: "hooks",
+  apiDirName: 'api',
+  typesDirName: 'types',
+  hooksDirName: 'hooks',
   customFormattersEnabled: false,
 };
 

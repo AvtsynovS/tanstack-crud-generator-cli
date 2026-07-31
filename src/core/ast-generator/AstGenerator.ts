@@ -109,15 +109,28 @@ export class AstGenerator {
     const { formatWithPrettier } = await import(
       '../../features/formatter/prettierFormatter.js'
     );
+    const { formatWithEslint } = await import(
+      '../../features/formatter/eslintFormatter.js'
+    );
 
     const sourceFiles = this.project.getSourceFiles();
 
     for (const file of sourceFiles) {
+      const filePath = file.getFilePath();
       const rawText = file.getFullText();
 
-      const formattedText = await formatWithPrettier(rawText, this.config);
+      const prettierFormattedText = await formatWithPrettier(
+        rawText,
+        this.config,
+      );
 
-      file.replaceWithText(formattedText);
+      const eslintFixedText = await formatWithEslint(
+        prettierFormattedText,
+        filePath,
+        this.config,
+      );
+
+      file.replaceWithText(eslintFixedText);
     }
 
     await this.project.save();
