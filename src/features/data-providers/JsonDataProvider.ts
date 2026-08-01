@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import * as prompts from '@clack/prompts';
 import {
   DataProvider,
   EntitySpecification,
@@ -28,11 +29,35 @@ export class JsonDataProvider implements DataProvider {
         );
       }
 
-      return Object.entries(parsed).map(
-        ([entityName, schema]: [string, any], index) => {
-          return this.parseSchema(entityName, schema, index);
-        },
-      );
+      const allEntityNames = Object.keys(parsed);
+
+      if (allEntityNames.length === 0) {
+        throw new Error('No data schemas were found in the JSON file');
+      }
+
+      let entitiesToProcess = allEntityNames;
+
+      // Clack multiselect entities
+      if (allEntityNames.length > 1) {
+        const selectedNames = await prompts.multiselect({
+          message:
+            'Select the entities for which you want to generate TanStack CRUD:',
+          options: allEntityNames.map((name) => ({ value: name, label: name })),
+          required: true,
+        });
+
+        if (prompts.isCancel(selectedNames)) {
+          prompts.cancel('Operation cancelled by user');
+          process.exit(0);
+        }
+
+        entitiesToProcess = selectedNames as string[];
+      }
+
+      return entitiesToProcess.map((entityName, index) => {
+        const schema = parsed[entityName];
+        return this.parseSchema(entityName, schema, index);
+      });
     } catch (error: any) {
       throw new Error(
         `[JsonDataProvider] Failed to parse JSON file: ${error.message}`,
