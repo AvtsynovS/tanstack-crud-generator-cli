@@ -22,14 +22,14 @@
         "name": "status",
         "type": "TodoStatus",
         "required": true,
-        "description": "Ссылка на глобальный Enum"
+        "description": "Link to global Enum"
       },
       {
         "name": "priority",
         "type": "string",
         "required": true,
         "enum": ["low", "medium", "high"],
-        "description": "Локальный Union"
+        "description": "Local Union"
       }
     ],
     "nestedTypes": {

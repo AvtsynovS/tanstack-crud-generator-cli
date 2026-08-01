@@ -4,7 +4,8 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import { ESLint, Linter } from 'eslint';
 import { defineConfig } from 'eslint/config';
-import { CliConfig } from '../config-manager/configManager.js';
+
+import type { CliConfig } from '../../shared/index.js';
 
 const DEFAULT_TS_ESLINT_CONFIG = defineConfig(js.configs.recommended, {
   files: ['**/*.ts'],

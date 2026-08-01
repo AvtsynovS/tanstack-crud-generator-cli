@@ -1,21 +1,30 @@
-import { SourceFile, VariableDeclarationKind } from "ts-morph";
-import { EntitySpecification } from "../../shared/types/dataProvider.js";
+import { SourceFile, VariableDeclarationKind } from 'ts-morph';
+
+import type { EntitySpecification } from '../../shared/index.js';
+
+type BuildApiType = {
+  file: SourceFile;
+  spec: EntitySpecification;
+  typesImportPath: string;
+  httpClientImportPath: string;
+};
 
 /**
  * API Client Request Generation Template
  */
-export function buildApi(
-  file: SourceFile,
-  spec: EntitySpecification,
-  typesImportPath: string,
-): void {
+export const buildApi = ({
+  file,
+  spec,
+  typesImportPath,
+  httpClientImportPath,
+}: BuildApiType) => {
   const name = spec.name;
   const nameLower = name.toLowerCase();
   const urlPath = `/${nameLower}s`;
 
   file.addImportDeclaration({
-    moduleSpecifier: "@common/data-access",
-    namedImports: ["httpClient"],
+    moduleSpecifier: httpClientImportPath,
+    namedImports: ['httpClient'],
   });
 
   file.addImportDeclaration({
@@ -88,4 +97,4 @@ export function buildApi(
       },
     ],
   });
-}
+};

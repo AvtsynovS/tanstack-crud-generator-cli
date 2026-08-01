@@ -1,17 +1,26 @@
-import { SourceFile, VariableDeclarationKind } from "ts-morph";
-import path from "path";
-import { EntitySpecification } from "../../shared/types/dataProvider.js";
+import { SourceFile, VariableDeclarationKind } from 'ts-morph';
+import path from 'path';
+
+import type { EntitySpecification } from '../../shared/index.js';
+
+type BuildHooksType = {
+  hooksDir: string;
+  spec: EntitySpecification;
+  apiImportPath: string;
+  typesImportPath: string;
+  createSourceFileFn: (filePath: string) => SourceFile;
+};
 
 /**
  * TanStack CRUD React Hooks Generation Template
  */
-export function buildHooks(
-  hooksDir: string,
-  spec: EntitySpecification,
-  apiImportPath: string,
-  typesImportPath: string,
-  createSourceFileFn: (filePath: string) => SourceFile,
-): void {
+export function buildHooks({
+  hooksDir,
+  spec,
+  apiImportPath,
+  typesImportPath,
+  createSourceFileFn,
+}: BuildHooksType): void {
   const name = spec.name;
   const nameLower = name.toLowerCase();
 
@@ -19,8 +28,8 @@ export function buildHooks(
     path.join(hooksDir, `useGet${name}s.ts`),
   );
   fileGetList.addImportDeclaration({
-    moduleSpecifier: "@tanstack/react-query",
-    namedImports: ["useQuery"],
+    moduleSpecifier: '@tanstack/react-query',
+    namedImports: ['useQuery'],
   });
   fileGetList.addImportDeclaration({
     moduleSpecifier: `./${nameLower}.keys.js`,
@@ -45,8 +54,8 @@ export function buildHooks(
     path.join(hooksDir, `useGet${name}ById.ts`),
   );
   fileGetOne.addImportDeclaration({
-    moduleSpecifier: "@tanstack/react-query",
-    namedImports: ["useQuery"],
+    moduleSpecifier: '@tanstack/react-query',
+    namedImports: ['useQuery'],
   });
   fileGetOne.addImportDeclaration({
     moduleSpecifier: `./${nameLower}.keys.js`,
@@ -71,8 +80,8 @@ export function buildHooks(
     path.join(hooksDir, `useCreate${name}.ts`),
   );
   fileCreate.addImportDeclaration({
-    moduleSpecifier: "@tanstack/react-query",
-    namedImports: ["useMutation"],
+    moduleSpecifier: '@tanstack/react-query',
+    namedImports: ['useMutation'],
   });
   fileCreate.addImportDeclaration({
     moduleSpecifier: apiImportPath,
@@ -97,8 +106,8 @@ export function buildHooks(
     path.join(hooksDir, `useUpdate${name}.ts`),
   );
   fileUpdate.addImportDeclaration({
-    moduleSpecifier: "@tanstack/react-query",
-    namedImports: ["useMutation"],
+    moduleSpecifier: '@tanstack/react-query',
+    namedImports: ['useMutation'],
   });
   fileUpdate.addImportDeclaration({
     moduleSpecifier: apiImportPath,
@@ -127,8 +136,8 @@ export function buildHooks(
     path.join(hooksDir, `useDelete${name}.ts`),
   );
   fileDelete.addImportDeclaration({
-    moduleSpecifier: "@tanstack/react-query",
-    namedImports: ["useMutation"],
+    moduleSpecifier: '@tanstack/react-query',
+    namedImports: ['useMutation'],
   });
   fileDelete.addImportDeclaration({
     moduleSpecifier: apiImportPath,

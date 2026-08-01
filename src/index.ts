@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 
 import { program } from 'commander';
-import { runPromptWizard } from './features/prompt-wizard/promptWizard.js';
-import { JsonDataProvider } from './features/data-providers/JsonDataProvider.js';
 import { AstGenerator } from './core/ast-generator/AstGenerator.js';
-import { configManager } from './features/config-manager/configManager.js';
-import { DataProvider } from './shared/types/dataProvider.js';
 import {
+  configManager,
   isEslintConfigValid,
   isPrettierConfigValid,
-} from './features/utils/utils.js';
-import { color } from './shared/config/constants.js';
-import { OpenApiDataProvider } from './features/data-providers/OpenApiDataProvider.js';
+  JsonDataProvider,
+  OpenApiDataProvider,
+  runPromptWizard,
+} from './features/index.js';
+import { color } from './shared/index.js';
+
+import type { DataProvider } from './shared/index.js';
 
 const getDataProvider = (sourcePath: string): DataProvider => {
   const lowerPath = sourcePath.toLowerCase();

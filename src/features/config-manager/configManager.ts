@@ -1,27 +1,10 @@
 import fs from 'fs-extra';
 import path from 'path';
+import { DEFAULT_CONFIG } from '../../shared/index.js';
 
-export interface CliConfig {
-  outputDir: string;
-  createSubdirs: boolean;
-  apiDirName: string;
-  typesDirName: string;
-  hooksDirName: string;
-  customFormattersEnabled: boolean;
-  prettierConfigPath?: string;
-  eslintConfigPath?: string;
-}
+import type { CliConfig } from '../../shared/index.js';
 
 const CONFIG_FILE_NAME = '.tsgenrc.json';
-
-export const DEFAULT_CONFIG: CliConfig = {
-  outputDir: './',
-  createSubdirs: true,
-  apiDirName: 'api',
-  typesDirName: 'types',
-  hooksDirName: 'hooks',
-  customFormattersEnabled: false,
-};
 
 const getConfigPath = (): string => path.join(process.cwd(), CONFIG_FILE_NAME);
 

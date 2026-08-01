@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
-import { CliConfig } from '../config-manager/configManager.js';
+
+import type { CliConfig } from '../../shared/index.js';
 
 export const isPrettierConfigValid = (config: CliConfig) => {
   if (!config.customFormattersEnabled || !config.prettierConfigPath) {
