@@ -98,7 +98,7 @@ export const runPromptWizard = async (): Promise<CliConfig> => {
     const prettierPath = await prompts.text({
       message:
         'Enter the relative path to the .prettierrc file (Enter to skip):',
-      placeholder: './.prettierrc',
+      placeholder: '.prettierrc',
       initialValue: currentConfig.prettierConfigPath || '',
     });
 
