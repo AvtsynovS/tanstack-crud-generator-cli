@@ -1,10 +1,10 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { promises as fs } from 'fs';
+import path from 'path';
 import {
   DataProvider,
   EntitySpecification,
   EntityProperty,
-} from "../../shared/types/dataProvider.js";
+} from '../../shared/types/dataProvider.js';
 
 export class JsonDataProvider implements DataProvider {
   private filePath: string;
@@ -13,44 +13,18 @@ export class JsonDataProvider implements DataProvider {
     this.filePath = path.resolve(process.cwd(), filePath);
   }
 
-  private mapProperty(prop: any, contextName: string): EntityProperty {
-    if (!prop.name || typeof prop.name !== "string") {
-      throw new Error(
-        `Property name missing or invalid in context "${contextName}".`,
-      );
-    }
-    if (!prop.type || typeof prop.type !== "string") {
-      throw new Error(
-        `Property type missing or invalid for "${prop.name}" in context "${contextName}".`,
-      );
-    }
-
-    return {
-      name: prop.name,
-      type: prop.type,
-      required: Boolean(prop.required),
-      description:
-        typeof prop.description === "string" ? prop.description : undefined,
-      pattern: typeof prop.pattern === "string" ? prop.pattern : undefined,
-      format: typeof prop.format === "string" ? prop.format : undefined,
-      enum: Array.isArray(prop.enum) ? prop.enum.map(String) : undefined,
-      minimum: typeof prop.minimum === "number" ? prop.minimum : undefined,
-      maximum: typeof prop.maximum === "number" ? prop.maximum : undefined,
-    };
-  }
-
   async getSpecification(): Promise<EntitySpecification[]> {
     try {
-      const rawData = await fs.readFile(this.filePath, "utf-8");
+      const rawData = await fs.readFile(this.filePath, 'utf-8');
       const parsed = JSON.parse(rawData);
 
       if (
-        typeof parsed !== "object" ||
+        typeof parsed !== 'object' ||
         parsed === null ||
         Array.isArray(parsed)
       ) {
         throw new Error(
-          "Root of the JSON file must be a Key-Value object (dictionary of entities)",
+          'Root of the JSON file must be a Key-Value object (dictionary of entities)',
         );
       }
 
@@ -66,22 +40,48 @@ export class JsonDataProvider implements DataProvider {
     }
   }
 
+  private mapProperty(prop: any, contextName: string): EntityProperty {
+    if (!prop.name || typeof prop.name !== 'string') {
+      throw new Error(
+        `Property name missing or invalid in context "${contextName}".`,
+      );
+    }
+    if (!prop.type || typeof prop.type !== 'string') {
+      throw new Error(
+        `Property type missing or invalid for "${prop.name}" in context "${contextName}".`,
+      );
+    }
+
+    return {
+      name: prop.name,
+      type: prop.type,
+      required: Boolean(prop.required),
+      description:
+        typeof prop.description === 'string' ? prop.description : undefined,
+      pattern: typeof prop.pattern === 'string' ? prop.pattern : undefined,
+      format: typeof prop.format === 'string' ? prop.format : undefined,
+      enum: Array.isArray(prop.enum) ? prop.enum.map(String) : undefined,
+      minimum: typeof prop.minimum === 'number' ? prop.minimum : undefined,
+      maximum: typeof prop.maximum === 'number' ? prop.maximum : undefined,
+    };
+  }
+
   private parseSchema(
     name: string,
     item: any,
     index: number,
   ): EntitySpecification {
-    if (!name || typeof name !== "string") {
+    if (!name || typeof name !== 'string') {
       throw new Error(`Invalid schema name at index ${index}`);
     }
-    if (typeof item !== "object" || item === null) {
+    if (typeof item !== 'object' || item === null) {
       throw new Error(`Schema definition for "${name}" must be an object`);
     }
 
-    const type = item.type === "string" ? "string" : "object";
+    const type = item.type === 'string' ? 'string' : 'object';
 
     // Global Enum
-    if (type === "string") {
+    if (type === 'string') {
       if (!Array.isArray(item.enum)) {
         throw new Error(
           `Enum schema "${name}" must have an "enum" array of strings`,
@@ -89,7 +89,7 @@ export class JsonDataProvider implements DataProvider {
       }
       return {
         name,
-        type: "string",
+        type: 'string',
         enum: item.enum.map(String),
       };
     }
@@ -106,7 +106,7 @@ export class JsonDataProvider implements DataProvider {
     let nestedTypes: EntitySpecification[] | undefined;
 
     if (
-      typeof item.nestedTypes === "object" &&
+      typeof item.nestedTypes === 'object' &&
       item.nestedTypes !== null &&
       !Array.isArray(item.nestedTypes)
     ) {
@@ -118,7 +118,7 @@ export class JsonDataProvider implements DataProvider {
 
     return {
       name,
-      type: "object",
+      type: 'object',
       properties,
       nestedTypes,
     };

@@ -11,8 +11,9 @@ import {
   isPrettierConfigValid,
 } from './features/utils/utils.js';
 import { color } from './shared/config/constants.js';
+import { OpenApiDataProvider } from './features/data-providers/OpenApiDataProvider.js';
 
-function getDataProvider(sourcePath: string): DataProvider {
+const getDataProvider = (sourcePath: string): DataProvider => {
   const lowerPath = sourcePath.toLowerCase();
 
   if (
@@ -22,11 +23,11 @@ function getDataProvider(sourcePath: string): DataProvider {
     lowerPath.endsWith('.yml') ||
     lowerPath.includes('swagger')
   ) {
-    // return new OpenApiDataProvider(sourcePath);
+    return new OpenApiDataProvider(sourcePath);
   }
 
   return new JsonDataProvider(sourcePath);
-}
+};
 
 program
   .version('1.0.0')
