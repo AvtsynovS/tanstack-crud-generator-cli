@@ -1,11 +1,12 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import * as prompts from '@clack/prompts';
-import {
+
+import type {
   DataProvider,
-  EntitySpecification,
   EntityProperty,
-} from '../../shared/types/dataProvider.js';
+  EntitySpecification,
+} from '../../shared/index.js';
 
 export class JsonDataProvider implements DataProvider {
   private filePath: string;

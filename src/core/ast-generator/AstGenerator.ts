@@ -1,12 +1,14 @@
 import { Project, QuoteKind, IndentationText } from 'ts-morph';
 import path from 'path';
-import { EntitySpecification } from '../../shared/types/dataProvider.js';
-import { CliConfig } from '../../features/config-manager/configManager.js';
+import {
+  buildApi,
+  buildHooks,
+  buildKeys,
+  buildRequestTypes,
+  buildTypes,
+} from '../templates/index.js';
 
-import { buildRequestTypes, buildTypes } from '../templates/types.template.js';
-import { buildApi } from '../templates/api.template.js';
-import { buildKeys } from '../templates/keys.template.js';
-import { buildHooks } from '../templates/hooks.template.js';
+import type { CliConfig, EntitySpecification } from '../../shared/index.js';
 
 export class AstGenerator {
   private project: Project;
@@ -93,18 +95,23 @@ export class AstGenerator {
       `${entityNameLower}RequestTypes.js`,
     );
 
-    buildApi(apiFile, spec, typesImportPathFromApi);
+    buildApi({
+      file: apiFile,
+      spec,
+      typesImportPath: typesImportPathFromApi,
+      httpClientImportPath: this.config.httpClientImportPath,
+    });
     buildKeys(keysFile, spec);
     buildRequestTypes(requestTypesFile, spec);
     buildTypes(typesFile, spec);
-    buildHooks(
-      targetHooksDir,
+    buildHooks({
+      hooksDir: targetHooksDir,
       spec,
-      apiImportPathFromHooks,
-      typesImportPathFromHooks,
-      (filePath: string) =>
+      apiImportPath: apiImportPathFromHooks,
+      typesImportPath: typesImportPathFromHooks,
+      createSourceFileFn: (filePath: string) =>
         this.project.createSourceFile(filePath, '', { overwrite: true }),
-    );
+    });
 
     const { formatWithPrettier } = await import(
       '../../features/formatter/prettierFormatter.js'

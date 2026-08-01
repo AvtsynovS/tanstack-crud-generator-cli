@@ -1,10 +1,11 @@
 import SwaggerParser from '@apidevtools/swagger-parser';
 import * as prompts from '@clack/prompts';
-import {
+
+import type {
   DataProvider,
   EntitySpecification,
   EntityProperty,
-} from '../../shared/types/dataProvider.js';
+} from '../../shared/index.js';
 
 export class OpenApiDataProvider implements DataProvider {
   private source: string;

@@ -1,8 +1,9 @@
-import { SourceFile } from "ts-morph";
-import {
+import { SourceFile } from 'ts-morph';
+
+import type {
   EntityProperty,
   EntitySpecification,
-} from "../../shared/types/dataProvider.js";
+} from '../../shared/index.js';
 
 /**
  * Request/Response type and client interface generation template
@@ -79,7 +80,7 @@ export function buildTypes(file: SourceFile, spec: EntitySpecification): void {
   };
 
   const processSchema = (schema: EntitySpecification) => {
-    if (schema.type === "string" && Array.isArray(schema.enum)) {
+    if (schema.type === 'string' && Array.isArray(schema.enum)) {
       file.addEnum({
         name: `${schema.name}Type`,
         isExported: true,
@@ -92,11 +93,11 @@ export function buildTypes(file: SourceFile, spec: EntitySpecification): void {
       schema.nestedTypes.forEach((nestedSchema) => processSchema(nestedSchema));
     }
 
-    if (schema.type === "object" && Array.isArray(schema.properties)) {
+    if (schema.type === 'object' && Array.isArray(schema.properties)) {
       const propertiesStructure = schema.properties.map((prop) => {
         let propType = prop.type;
-        if (prop.type === "string" && Array.isArray(prop.enum)) {
-          propType = prop.enum.map((val) => `'${val}'`).join(" | ");
+        if (prop.type === 'string' && Array.isArray(prop.enum)) {
+          propType = prop.enum.map((val) => `'${val}'`).join(' | ');
         } else if (customTypeNames.has(prop.type)) {
           propType = `${prop.type}Type`;
         }
@@ -107,7 +108,7 @@ export function buildTypes(file: SourceFile, spec: EntitySpecification): void {
           name: prop.name,
           type: propType,
           hasQuestionToken: !prop.required,
-          docs: jsDocLines.length > 0 ? [jsDocLines.join("\n")] : undefined,
+          docs: jsDocLines.length > 0 ? [jsDocLines.join('\n')] : undefined,
         };
       });
 

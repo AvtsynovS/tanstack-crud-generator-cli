@@ -1,5 +1,6 @@
-import { SourceFile, VariableDeclarationKind } from "ts-morph";
-import { EntitySpecification } from "../../shared/types/dataProvider.js";
+import { SourceFile, VariableDeclarationKind } from 'ts-morph';
+
+import type { EntitySpecification } from '../../shared/index.js';
 
 /**
  * Query Keys Factory Generation Template for TanStack v5
@@ -18,7 +19,7 @@ export function buildKeys(file: SourceFile, spec: EntitySpecification): void {
     declarationKind: VariableDeclarationKind.Const,
     declarations: [
       {
-        name: "clientObjectKeys",
+        name: 'clientObjectKeys',
         initializer: `{\n  query: {\n    list: () => [...${entityNameLower}, 'list'],\n    one: (id: string) => [...${entityNameLower}, id] as const,\n  },\n}`,
       },
     ],
@@ -30,7 +31,7 @@ export function buildKeys(file: SourceFile, spec: EntitySpecification): void {
     declarations: [
       {
         name: `${entityNameLower}QueryKeys`,
-        initializer: "clientObjectKeys.query",
+        initializer: 'clientObjectKeys.query',
       },
     ],
   });

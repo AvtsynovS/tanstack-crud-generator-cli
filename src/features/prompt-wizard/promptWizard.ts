@@ -1,33 +1,43 @@
-import * as prompts from "@clack/prompts";
-import {
-  configManager,
-  CliConfig,
-  DEFAULT_CONFIG,
-} from "../config-manager/configManager.js";
+import * as prompts from '@clack/prompts';
+import { configManager } from '../config-manager/configManager.js';
+import { color, DEFAULT_CONFIG } from '../../shared/index.js';
+
+import type { CliConfig } from '../../shared/index.js';
 
 export const runPromptWizard = async (): Promise<CliConfig> => {
   const currentConfig = configManager.read();
 
-  prompts.intro("🪄  TanStack CRUD Generator: Настройка конфигурации");
+  prompts.intro('🪄  TanStack CRUD Generator: Configuration setup');
 
   const structureAnswers = await prompts.group(
     {
       outputDir: () =>
         prompts.text({
-          message: "Укажите родительскую директорию для генерации кода:",
+          message: 'Enter the parent directory for code generation:',
           placeholder: DEFAULT_CONFIG.outputDir,
           initialValue: currentConfig.outputDir,
         }),
       createSubdirs: () =>
         prompts.confirm({
           message:
-            "Создавать изолированную подпапку с названием сущности (например, /todo) внутри родительской директории?",
+            'Create an isolated subfolder with the name of the entity (eg: /todo) inside the parent directory?',
           initialValue: currentConfig.createSubdirs,
+        }),
+      httpClientImportPath: () =>
+        prompts.text({
+          message: 'Enter the path or alias to import httpClient:',
+          placeholder: '@common/data-access',
+          initialValue:
+            currentConfig.httpClientImportPath || '@common/data-access',
+          validate: (value) => {
+            if (!value?.trim())
+              return `${color.error} The import path cannot be empty${color.default}`;
+          },
         }),
     },
     {
       onCancel: () => {
-        prompts.cancel("Настройка отменена");
+        prompts.cancel('Setting cancelled');
         process.exit(0);
       },
     },
@@ -43,26 +53,26 @@ export const runPromptWizard = async (): Promise<CliConfig> => {
     {
       apiDirName: () =>
         prompts.text({
-          message: "Название директории для API-методов:",
+          message: 'Directory name for API methods:',
           placeholder: DEFAULT_CONFIG.apiDirName,
           initialValue: currentConfig.apiDirName,
         }),
       typesDirName: () =>
         prompts.text({
-          message: "Название директории для TypeScript-типов:",
+          message: 'Directory name for TypeScript types:',
           placeholder: DEFAULT_CONFIG.typesDirName,
           initialValue: currentConfig.typesDirName,
         }),
       hooksDirName: () =>
         prompts.text({
-          message: "Название директории для TanStack-хуков:",
+          message: 'Directory name for TanStack hooks:',
           placeholder: DEFAULT_CONFIG.hooksDirName,
           initialValue: currentConfig.hooksDirName,
         }),
     },
     {
       onCancel: () => {
-        prompts.cancel("Настройка отменена");
+        prompts.cancel('Setting cancelled');
         process.exit(0);
       },
     },
@@ -72,12 +82,12 @@ export const runPromptWizard = async (): Promise<CliConfig> => {
 
   const wantsLinters = await prompts.confirm({
     message:
-      "Хотите указать пути к файлам настроек ESLint / Prettier для форматирования кода?",
+      'Want to specify paths to ESLint/Prettier settings files for code formatting?',
     initialValue: currentConfig.customFormattersEnabled,
   });
 
   if (prompts.isCancel(wantsLinters)) {
-    prompts.cancel("Настройка отменена.");
+    prompts.cancel('Setting cancelled');
     process.exit(0);
   }
 
@@ -87,34 +97,34 @@ export const runPromptWizard = async (): Promise<CliConfig> => {
   if (wantsLinters) {
     const prettierPath = await prompts.text({
       message:
-        "Введите относительный путь до файла .prettierrc (Enter, чтобы пропустить):",
-      placeholder: "./.prettierrc",
-      initialValue: currentConfig.prettierConfigPath || "",
+        'Enter the relative path to the .prettierrc file (Enter to skip):',
+      placeholder: './.prettierrc',
+      initialValue: currentConfig.prettierConfigPath || '',
     });
 
     if (prompts.isCancel(prettierPath)) {
-      prompts.cancel("Настройка отменена");
+      prompts.cancel('Setting cancelled');
       process.exit(0);
     }
 
     const eslintPath = await prompts.text({
       message:
-        "Введите относительный путь до файла конфигурации ESLint (Enter, чтобы пропустить):",
-      placeholder: "./eslint.config.js",
-      initialValue: currentConfig.eslintConfigPath || "",
+        'Enter the relative path to the ESLint configuration file (Enter to skip):',
+      placeholder: './eslint.config.js',
+      initialValue: currentConfig.eslintConfigPath || '',
     });
 
     if (prompts.isCancel(eslintPath)) {
-      prompts.cancel("Настройка отменена");
+      prompts.cancel('Setting cancelled');
       process.exit(0);
     }
 
     prettierConfigPath =
-      typeof prettierPath === "string" && prettierPath.trim()
+      typeof prettierPath === 'string' && prettierPath.trim()
         ? prettierPath.trim()
         : undefined;
     eslintConfigPath =
-      typeof eslintPath === "string" && eslintPath.trim()
+      typeof eslintPath === 'string' && eslintPath.trim()
         ? eslintPath.trim()
         : undefined;
   } else {
@@ -125,6 +135,7 @@ export const runPromptWizard = async (): Promise<CliConfig> => {
   const finalConfig: CliConfig = {
     outputDir: structureAnswers.outputDir.trim(),
     createSubdirs: structureAnswers.createSubdirs,
+    httpClientImportPath: structureAnswers.httpClientImportPath,
     apiDirName: subdirsAnswers.apiDirName.trim(),
     typesDirName: subdirsAnswers.typesDirName.trim(),
     hooksDirName: subdirsAnswers.hooksDirName.trim(),
@@ -135,7 +146,7 @@ export const runPromptWizard = async (): Promise<CliConfig> => {
 
   configManager.write(finalConfig);
 
-  prompts.outro("🎉 Файл конфигурации .tsgenrc.json успешно сохранен!");
+  prompts.outro('🎉 Configuration file .tsgenrc.json saved successfully!');
 
   return finalConfig;
 };

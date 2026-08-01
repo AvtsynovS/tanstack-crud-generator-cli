@@ -1,9 +1,22 @@
 import prettier from 'prettier';
 import path from 'path';
 import fs from 'fs';
-import { CliConfig } from '../config-manager/configManager.js';
-import { DEFAULT_PRETTIER_OPTIONS } from './prettierConfig.js';
-import { color } from '../../shared/config/constants.js';
+
+import { color } from '../../shared/index.js';
+
+import type { CliConfig } from '../../shared/index.js';
+
+const DEFAULT_PRETTIER_OPTIONS: prettier.Options = {
+  parser: 'typescript',
+  singleQuote: true,
+  trailingComma: 'all',
+  tabWidth: 2,
+  semi: true,
+  printWidth: 80,
+  endOfLine: 'lf',
+  bracketSpacing: true,
+  singleAttributePerLine: false,
+};
 
 export const formatWithPrettier = async (
   rawCode: string,
