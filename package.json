@@ -1,8 +1,14 @@
 {
-  "name": "tanstack-crud-generator-cli",
+  "name": "tanstack-crud-generator",
   "version": "1.0.0",
+  "keywords": [
+    "tanStack",
+    "cli",
+    "crud",
+    "generator"
+  ],
   "type": "module",
-  "description": "CLI tool to generate TanStack CRUD hooks and interfaces",
+  "description": "CLI tool to generate TanStack CRUD hooks, api and interfaces",
   "author": {
     "name": "Avtsynov Sergey",
     "url": "https://github.com/AvtsynovS"
@@ -12,10 +18,13 @@
   "bin": {
     "ts-gen": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
-    "prepublish": "npm run build"
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
