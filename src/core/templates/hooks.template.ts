@@ -90,6 +90,7 @@ export function buildHooks({
   fileCreate.addImportDeclaration({
     moduleSpecifier: typesImportPath,
     namedImports: [`${name}RequestType`],
+    isTypeOnly: true,
   });
   fileCreate.addVariableStatement({
     isExported: true,
@@ -116,6 +117,7 @@ export function buildHooks({
   fileUpdate.addImportDeclaration({
     moduleSpecifier: typesImportPath,
     namedImports: [`${name}RequestType`],
+    isTypeOnly: true,
   });
   fileUpdate.addTypeAlias({
     name: `Update${name}RequestType`,

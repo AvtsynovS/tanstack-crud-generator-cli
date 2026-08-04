@@ -34,6 +34,7 @@ export const buildApi = ({
       `${name}RequestType`,
       `${name}ResponseType`,
     ],
+    isTypeOnly: true,
   });
 
   file.addVariableStatement({

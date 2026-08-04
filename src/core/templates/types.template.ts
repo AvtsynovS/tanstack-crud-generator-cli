@@ -18,6 +18,7 @@ export function buildRequestTypes(
   file.addImportDeclaration({
     moduleSpecifier: `./${entityNameLower}Types.js`,
     namedImports: [`${name}Type`],
+    isTypeOnly: true,
   });
 
   file.addTypeAlias({
