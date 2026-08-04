@@ -6,6 +6,7 @@ import type {
   EntitySpecification,
   EntityProperty,
 } from '../../shared/index.js';
+import { generateNestedTypeName, normalizeDataType } from './utils.js';
 
 export class OpenApiDataProvider implements DataProvider {
   private source: string;
@@ -195,13 +196,75 @@ export class OpenApiDataProvider implements DataProvider {
     const requiredFields = Array.isArray(schema.required)
       ? schema.required
       : [];
+    const nestedTypes: EntitySpecification[] = [];
 
     if (schema.properties && typeof schema.properties === 'object') {
       Object.entries(schema.properties).forEach(
         ([propName, propBlock]: [string, any]) => {
+          let propType = normalizeDataType(
+            propBlock.title || propBlock.type || 'any',
+          );
+
+          let mappedItems: { type: string; enum?: string[] } | undefined =
+            undefined;
+
+          if (propBlock.type === 'array' && propBlock.items) {
+            const itemsBlock = propBlock.items;
+            let itemType = normalizeDataType(
+              itemsBlock.title || itemsBlock.type || 'any',
+            );
+
+            if (itemsBlock.$ref && typeof itemsBlock.$ref === 'string') {
+              const refName = itemsBlock.$ref.split('/').pop();
+              if (refName) itemType = refName;
+            }
+
+            itemType = normalizeDataType(itemType);
+
+            if (
+              itemsBlock.type === 'object' &&
+              itemsBlock.properties &&
+              !itemsBlock.title
+            ) {
+              const generatedTypeName = generateNestedTypeName(propName);
+
+              const nestedSpec = this.mapOpenApiSchema(
+                generatedTypeName,
+                itemsBlock,
+              );
+              nestedTypes.push(nestedSpec);
+
+              itemType = generatedTypeName;
+            }
+
+            mappedItems = {
+              type: itemType,
+              enum: Array.isArray(itemsBlock.enum)
+                ? itemsBlock.enum.map(String)
+                : undefined,
+            };
+          }
+
+          // inline object type
+          if (
+            propBlock.type === 'object' &&
+            propBlock.properties &&
+            !propBlock.title
+          ) {
+            const generatedTypeName = generateNestedTypeName(propName);
+
+            const nestedSpec = this.mapOpenApiSchema(
+              generatedTypeName,
+              propBlock,
+            );
+            nestedTypes.push(nestedSpec);
+
+            propType = generatedTypeName;
+          }
+
           properties.push({
             name: propName,
-            type: propBlock.title || propBlock.type || 'any',
+            type: propType,
             required: requiredFields.includes(propName),
             description: propBlock.description,
             pattern: propBlock.pattern,
@@ -217,17 +280,21 @@ export class OpenApiDataProvider implements DataProvider {
               typeof propBlock.maximum === 'number'
                 ? propBlock.maximum
                 : undefined,
+            items: mappedItems,
           });
         },
       );
     }
 
-    const nestedTypes: EntitySpecification[] = [];
     if (schema.properties) {
       Object.entries(schema.properties).forEach(
         ([propName, propBlock]: [string, any]) => {
           if (propBlock.title && (propBlock.properties || propBlock.enum)) {
-            nestedTypes.push(this.mapOpenApiSchema(propBlock.title, propBlock));
+            if (!nestedTypes.some((spec) => spec.name === propBlock.title)) {
+              nestedTypes.push(
+                this.mapOpenApiSchema(propBlock.title, propBlock),
+              );
+            }
           }
         },
       );

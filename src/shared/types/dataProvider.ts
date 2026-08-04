@@ -11,6 +11,7 @@ export interface EntityProperty {
   enum?: string[]; // Values ​​if this is a local Union
   minimum?: number; // Minimum value for numbers
   maximum?: number; // Maximum value for numbers
+  items?: { type: string; enum?: string[] }; // Array<T>
 }
 
 /**
