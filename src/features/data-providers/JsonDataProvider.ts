@@ -7,6 +7,7 @@ import type {
   EntityProperty,
   EntitySpecification,
 } from '../../shared/index.js';
+import { generateNestedTypeName, normalizeDataType } from './utils.js';
 
 export class JsonDataProvider implements DataProvider {
   private filePath: string;
@@ -78,9 +79,11 @@ export class JsonDataProvider implements DataProvider {
       );
     }
 
+    let propType = normalizeDataType(prop.type);
+
     return {
       name: prop.name,
-      type: prop.type,
+      type: propType,
       required: Boolean(prop.required),
       description:
         typeof prop.description === 'string' ? prop.description : undefined,
@@ -89,6 +92,15 @@ export class JsonDataProvider implements DataProvider {
       enum: Array.isArray(prop.enum) ? prop.enum.map(String) : undefined,
       minimum: typeof prop.minimum === 'number' ? prop.minimum : undefined,
       maximum: typeof prop.maximum === 'number' ? prop.maximum : undefined,
+      items:
+        prop.items && typeof prop.items === 'object'
+          ? {
+              type: normalizeDataType(prop.items.type),
+              enum: Array.isArray(prop.items.enum)
+                ? prop.items.enum.map(String)
+                : undefined,
+            }
+          : undefined,
     };
   }
 
@@ -125,28 +137,65 @@ export class JsonDataProvider implements DataProvider {
       throw new Error(`Object schema "${name}" must have a "properties" array`);
     }
 
-    const properties = item.properties.map((prop: any) =>
-      this.mapProperty(prop, name),
-    );
+    const nestedTypes: EntitySpecification[] = [];
 
-    let nestedTypes: EntitySpecification[] | undefined;
-
+    // nestedTypes
     if (
       typeof item.nestedTypes === 'object' &&
       item.nestedTypes !== null &&
       !Array.isArray(item.nestedTypes)
     ) {
-      nestedTypes = Object.entries(item.nestedTypes).map(
-        ([nestedName, nestedSchema]: [string, any], nIdx) =>
-          this.parseSchema(nestedName, nestedSchema, nIdx),
+      Object.entries(item.nestedTypes).forEach(
+        ([nestedName, nestedSchema]: [string, any], nIdx) => {
+          nestedTypes.push(this.parseSchema(nestedName, nestedSchema, nIdx));
+        },
       );
     }
+
+    const properties = item.properties.map((prop: any) => {
+      if (
+        prop.type === 'array' &&
+        prop.items &&
+        prop.items.type === 'object' &&
+        Array.isArray(prop.items.properties)
+      ) {
+        const generatedTypeName = generateNestedTypeName(prop.name);
+        const inlineNestedSpec = this.parseSchema(
+          generatedTypeName,
+          prop.items,
+          nestedTypes.length,
+        );
+        nestedTypes.push(inlineNestedSpec);
+
+        const modifiedProp = {
+          ...prop,
+          items: { ...prop.items, type: generatedTypeName },
+        };
+        return this.mapProperty(modifiedProp, name);
+      }
+
+      if (prop.type === 'object' && Array.isArray(prop.properties)) {
+        const generatedTypeName = generateNestedTypeName(prop.name);
+
+        const inlineNestedSpec = this.parseSchema(
+          generatedTypeName,
+          prop,
+          nestedTypes.length,
+        );
+        nestedTypes.push(inlineNestedSpec);
+
+        const modifiedProp = { ...prop, type: generatedTypeName };
+        return this.mapProperty(modifiedProp, name);
+      }
+
+      return this.mapProperty(prop, name);
+    });
 
     return {
       name,
       type: 'object',
       properties,
-      nestedTypes,
+      nestedTypes: nestedTypes.length > 0 ? nestedTypes : undefined,
     };
   }
 }

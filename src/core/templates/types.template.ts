@@ -80,6 +80,33 @@ export function buildTypes(file: SourceFile, spec: EntitySpecification): void {
     return docs;
   };
 
+  const resolvePropertyType = (prop: EntityProperty): string => {
+    if (!prop) return 'any';
+
+    if (prop.type === 'array' && prop.items) {
+      const itemType = resolvePropertyType({
+        name: prop.name,
+        type: prop.items.type,
+        required: true,
+        enum: prop.items.enum,
+      });
+
+      return itemType.includes('|') ? `(${itemType})[]` : `${itemType}[]`;
+    }
+
+    // Local Union
+    if (prop.type === 'string' && Array.isArray(prop.enum)) {
+      return prop.enum.map((val) => `'${val}'`).join(' | ');
+    }
+
+    // Interface
+    if (customTypeNames.has(prop.type)) {
+      return `${prop.type}Type`;
+    }
+
+    return prop.type;
+  };
+
   const processSchema = (schema: EntitySpecification) => {
     if (schema.type === 'string' && Array.isArray(schema.enum)) {
       file.addEnum({
@@ -96,13 +123,7 @@ export function buildTypes(file: SourceFile, spec: EntitySpecification): void {
 
     if (schema.type === 'object' && Array.isArray(schema.properties)) {
       const propertiesStructure = schema.properties.map((prop) => {
-        let propType = prop.type;
-        if (prop.type === 'string' && Array.isArray(prop.enum)) {
-          propType = prop.enum.map((val) => `'${val}'`).join(' | ');
-        } else if (customTypeNames.has(prop.type)) {
-          propType = `${prop.type}Type`;
-        }
-
+        const propType = resolvePropertyType(prop);
         const jsDocLines = buildJsDocLines(prop);
 
         return {
