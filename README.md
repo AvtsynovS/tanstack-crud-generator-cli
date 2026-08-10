@@ -376,6 +376,19 @@ export const useGetTodos = () => {
 
 ---
 
+## 🤝 Contributing & Feedback
+
+Contributions, issues, and feature requests are welcome!
+If you encounter any bugs or have ideas for improvements, please let me know.
+
+- **Bug Tracker:** 🐛 [Report an Issue](https://github.com) — find a bug or want to request a feature? Open a ticket here!
+- **Changelog:** 📄 [CHANGELOG.md](./CHANGELOG.md) — check out the history of notable changes, new features, and fixes in recent versions.
+- **Repository:** 📦 [GitHub Repository](https://github.com) — explore the source code, star the project ⭐, or fork it to make your own changes.
+
+Thank you for using **tanstack-crud-generator**! ❤️
+
+---
+
 ## 🛡️ License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
